@@ -198,7 +198,6 @@ jobs:
   test-lab:
     name: Firebase Test Lab
     needs: build-debug
-    if: github.event_name == 'workflow_dispatch' && inputs.run_test_lab == 'true'
     uses: ./.github/workflows/firebase-test-lab.yml
     with:
       artifact_name: towerfeasibility-debug-apk
