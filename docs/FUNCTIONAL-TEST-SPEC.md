@@ -137,21 +137,22 @@ the app and detect crashes, ANRs, and UI issues.
 **Severity:** P1
 
 
-### FT-009 — Commercial feasibility
+### FT-009 — Report sections / scoring
 
-**Description:** Verify commercial feasibility section renders
+**Description:** Verify the feasibility summary and report sections render
 
 **Steps:**
 1. Navigate to analysis results
-1. Verify CAPEX appears
-1. Verify OPEX appears
-1. Verify revenue appears
-1. Verify ROI appears
-1. Verify payback appears
+1. Verify overall score (1-10) is shown
+1. Verify recommendation (Go / Conditional / No-Go) is shown
+1. Verify report contains sections 1-8
+1. Verify no section renders NaN/Infinity/undefined
 
-**Expected:** Commercial feasibility section renders without NaN/Infinity
+**Expected:** Score + recommendation + 8 report sections render without NaN
 
 **Severity:** P1
+
+**PRODUCT GAP:** No commercial feasibility module (CAPEX/OPEX/revenue/ROI/payback) exists in the product
 
 
 ### FT-010 — Report generation
@@ -325,6 +326,15 @@ the app and detect crashes, ANRs, and UI issues.
 
 **Severity:** P0
 
+
+## Product Scope Gaps Identified During Test Design
+
+The mission brief specified tests for a commercial feasibility section
+(CAPEX / OPEX / revenue / ROI / payback). **No such module exists in the
+application source.** The app implements a 5-dimension technical
+feasibility score and an 8-section report. This is a scope gap, not a
+failing test — it is recorded here so it is not mistaken for a defect or
+silently asserted as passing.
 
 ## Execution
 

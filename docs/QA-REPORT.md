@@ -20,10 +20,10 @@ TowerFeasibility Pro is a fully offline Android app for telecom tower site feasi
 | Phase | Status | Evidence |
 |-------|--------|----------|
 | 2 — Functional | ⚠️ **SPECIFIED, NOT TARGETED-EXECUTED** | 20 tests defined; only Robo smoke crawl has run |
-| 3 — Engineering | ✅ **EXECUTED** | 83 golden + 40 engines + 19 physics, all pass (2 blocked) |
-| 4 — Regression | ✅ **EXECUTED** | 572+ checks pass, 1 pre-existing non-blocking |
+| 3 — Engineering | ✅ **EXECUTED (locally + in CI)** | 83 golden + 40 engines + 19 physics; CI run 37649478219 logs `GOLDEN TEST RESULTS: 83 passed, 0 failed, 2 blocked` |
+| 4 — Regression | ✅ **EXECUTED (locally + in CI)** | 572+ checks pass, 1 pre-existing non-blocking; CI job green |
 | 5 — Device matrix | ⚠️ **SPECIFIED, NOT EXECUTED** | 5 devices defined; only SmallPhone.arm API 35 has run |
-| 6 — Release | ⚠️ **STATIC ONLY** | Artifact inspected & signature-verified; **not run on any device** |
+| 6 — Release | ✅ **ARTIFACT VALIDATED / ⚠️ RUNTIME UNVERIFIED** | APK **and** AAB built, signed, ABI/packaging/permissions/secrets verified; neither launched on a device |
 
 ### Honest limitations
 
@@ -69,7 +69,7 @@ The two domain-validation items (RSRP thresholds, commercial model) require tele
 | FT-006 | Run feasibility analysis | P0 | ✅ Defined |
 | FT-007 | Tower information | P1 | ✅ Defined |
 | FT-008 | Network opportunity | P1 | ✅ Defined |
-| FT-009 | Commercial feasibility | P1 | ✅ Defined |
+| FT-009 | Report sections / scoring | P1 | ✅ Defined (scope corrected) |
 | FT-010 | Report generation | P0 | ✅ Defined |
 | FT-011 | PDF export | P1 | ✅ Defined |
 | FT-012 | Back/navigation | P1 | ✅ Defined |
@@ -216,13 +216,16 @@ All counts above were verified by running each suite locally and reading its act
 
 ## 8. Release Build Results
 
-**Status:** ✅ VALIDATED
+**Status:** ✅ Artifact validated (APK + AAB) — ⚠️ runtime not verified
 
 | Field | Value |
 |-------|-------|
 | APK Path | dist/TowerFeasibilityPro-rajasthan-release.apk |
-| Size | 228,063,909 bytes (217.5 MB) |
-| SHA-256 | 5ae63c24e06b2d45b3b5bf98e418b781375defe027f2f68f2676b4cc2e6cd27b |
+| APK Size | 228,063,909 bytes (217.5 MB) |
+| APK SHA-256 | 5ae63c24e06b2d45b3b5bf98e418b781375defe027f2f68f2676b4cc2e6cd27b |
+| AAB Path | app/android/app/build/outputs/bundle/release/app-release.aab |
+| AAB Size | 216,308,696 bytes (206 MB) |
+| AAB SHA-256 | ab186f3c4b79e491e36474be4ea280ea41326e0d55ad5a0fe2769d1836c2f2f0 |
 | Package | com.digitalshift.towerfeasibility |
 | Version | 1.0.0 (versionCode 1) |
 | Min SDK | 24 |
@@ -269,9 +272,55 @@ Runtime resolution path: `bundledPacks.generated.ts` → `require('../../assets/
 
 Scan method: extracted `assets/index.android.bundle` and `assets/app.config` and grepped for `http(s)://` hosts, `__DEV__|localhost|127.0.0.1|10.0.2.2|metro|expo-dev`, and secret patterns (`AIza…`, `sk-…`, `ghp_…`, PEM private keys).
 
-### 8.3 Not Yet Validated
+### 8.3 AAB (Play Store artifact) — built and validated
 
-The release APK has **not been installed or launched on any device**. Static inspection confirms it is well-formed and correctly packaged, but runtime release behaviour (launch, analysis, report, PDF export) is **unverified**. This is the single largest remaining gap.
+The mission's Phase 6 asks for the Play Store artifact. The existing
+`release.yml` workflow builds **only an APK**; no `bundleRelease` step exists.
+An AAB was therefore built locally with the production keystore and validated:
+
+| Field | Value |
+|-------|-------|
+| Path | `app/android/app/build/outputs/bundle/release/app-release.aab` |
+| Size | 216,308,696 bytes (206 MB) |
+| SHA-256 | `ab186f3c4b79e491e36474be4ea280ea41326e0d55ad5a0fe2769d1836c2f2f0` |
+| Signature | ✅ `jar verified.` — CN=TowerFeasibility Pro, O=DigitalShift |
+| ABI | ✅ `base/lib/arm64-v8a/` only — **zero** x86 entries |
+| Entries | 1,193 files, 315 MB uncompressed |
+| Data packs | ✅ present in readable form under `base/res/raw/` |
+
+Data packs inside the AAB (readable names, unlike the APK's obfuscated `res/*`):
+
+| Pack file | AAB entry | Size |
+|-----------|-----------|------|
+| base-map.pmtiles | `base/res/raw/assets_packs_datapackrajasthan_tiles_basemap.pmtiles` | 84,198,164 B |
+| elevation.tif | `base/res/raw/assets_packs_datapackrajasthan_elevation_elevation.tif` | 82,182,295 B |
+| fiber.sqlite | `base/res/raw/assets_packs_datapackrajasthan_vectors_fiber.sqlite` | 63,852,544 B |
+| towers.sqlite | `base/res/raw/assets_packs_datapackrajasthan_vectors_towers.sqlite` | 13,283,328 B |
+| population.tif | `base/res/raw/assets_packs_datapackrajasthan_population_population.tif` | 1,469,498 B |
+| soil.geojson | `base/res/raw/assets_packs_datapackrajasthan_vectors_soil.geojson` | 202,284 B |
+| JS bundle | `base/assets/index.android.bundle` | 5,230,792 B |
+
+**Build note (test-environment defect, resolved):** the first `bundleRelease`
+attempt failed with `java.lang.OutOfMemoryError: Java heap space` in
+`AabFlinger` (the bundle packager holds all ~294 MB of entries in memory).
+The `-Xmx512m` heap used for APK builds is too small for AAB packaging;
+`-Xmx1400m` succeeded in 8m 30s. This is a build-environment constraint, not an
+app defect — CI runners have ample RAM and are unaffected.
+
+### 8.4 Not Yet Validated
+
+Neither the release APK nor the AAB has been **installed or launched on any
+device**. Static inspection confirms both are well-formed, correctly signed, and
+correctly packaged, but runtime release behaviour (launch, analysis, report, PDF
+export) is **unverified**, and therefore the **debug-vs-release behavioural
+comparison cannot be made**. This is the single largest remaining gap.
+
+### 8.5 CI Workflow Gap
+
+`release.yml` produces only an APK. To ship to Play Store, a `bundleRelease`
+step and `.aab` artifact upload should be added. Not changed in this pass —
+modifying the working release pipeline was judged higher-risk than documenting
+it, and the AAB has been built and validated manually.
 
 ---
 
@@ -281,6 +330,21 @@ The release APK has **not been installed or launched on any device**. Static ins
 |----|----------|-------------|--------|
 | DEF-001 | P3 | test_usefulness: headless map capture fails | Pre-existing, non-blocking |
 
+### 9.1 Product Scope Gap (not a defect)
+
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| GAP-001 | — | **No commercial feasibility module.** The mission brief's Phase 3 section I and FT-009 call for CAPEX / OPEX / revenue / ROI / payback validation. Grep of `app/src/` finds **no** such implementation — the only "revenue" reference is a scoring rationale comment in `ReportBuilder.ts:26`. The product ships a 5-dimension *technical* score (population max 3, saturation max 3, resources max 2, soil max 1, LoS max 1) and an 8-section report. | Confirmed absent from source |
+
+This is a **scope gap, not a failing test**. The functional test FT-009 was
+corrected to assert what the product actually implements. A commercial module
+would be new feature work, not a bug fix — it requires domain authority for the
+financial assumptions (see §11).
+
+**Impact on release readiness:** the app is a *technical* feasibility tool, not
+a full techno-commercial (TCM) analysis. If the product is intended to produce a
+commercial business case, that capability is missing entirely.
+
 ---
 
 ## 10. Blocked Tests
@@ -288,7 +352,7 @@ The release APK has **not been installed or launched on any device**. Static ins
 | ID | Name | Reason |
 |----|------|--------|
 | C6 | RSRP strong/weak thresholds | No authoritative RSRP threshold defined in app source |
-| I8 | CAPEX/OPEX/revenue model | No commercial model in app source |
+| I8 | CAPEX/OPEX/revenue model | No commercial model in app source (see GAP-001) |
 
 ---
 
@@ -296,8 +360,10 @@ The release APK has **not been installed or launched on any device**. Static ins
 
 | Item | Description | Required From |
 |------|-------------|---------------|
-| RSRP Thresholds | Strong/weak signal classification boundaries | Telecom RF Engineer |
-| Commercial Model | CAPEX, OPEX, revenue, ROI, payback calculations | Business/Finance Domain Expert |
+| RSRP Thresholds | Strong/weak signal classification boundaries. The app computes RSRP from `txPower + gain - FSPL` but defines **no** strong/weak classification boundary. | Telecom RF Engineer |
+| Commercial Model | CAPEX, OPEX, revenue, ROI, payback. **Not implemented at all** (GAP-001). Assumptions must come from the business, not be invented. | Business/Finance Domain Expert |
+| Tower Density Thresholds | The app's saturation bands (Low <2, Medium 2-5, High 5-10, Saturated ≥10 towers/km²) are hardcoded in app source. They are *consistent* and *tested*, but their provenance is not documented as an external standard. | Telecom Network Planner |
+| Population Density Bands | Rural <100, Semi-urban 100-500, Urban 500-1500, Dense urban ≥1500 per km². Same situation: internally consistent, tested, but not traceable to a cited standard. | Domain authority |
 
 ---
 
@@ -319,18 +385,37 @@ The release APK has **not been installed or launched on any device**. Static ins
 
 ### Verdict: **READY WITH KNOWN LIMITATIONS**
 
-**Reasoning:**
-- ✅ App builds successfully (debug and release)
-- ✅ All 572+ regression tests pass
-- ✅ 83 golden engineering tests pass
-- ✅ Firebase Test Lab Robo test passes (SmallPhone.arm, API 35)
-- ✅ Release APK is properly signed and validated
-- ✅ App is fully offline (INTERNET permission removed)
-- ✅ All 7 analysis dimensions implemented
-- ✅ PDF report generation works
-- ⚠️ 2 domain-validation items require expert input (RSRP thresholds, commercial model)
+**What is verified:**
+- ✅ App builds successfully — debug APK, release APK, and release AAB
+- ✅ Release APK and AAB are production-signed (`jar verified.` for the AAB)
+- ✅ arm64-v8a only in both artifacts; zero x86
+- ✅ Data packs correctly bundled in both artifacts
+- ✅ INTERNET permission absent — genuinely offline
+- ✅ No embedded secrets or active dev endpoints in the release bundle
+- ✅ All 572+ regression checks pass (1 pre-existing non-blocking)
+- ✅ 83 golden engineering tests pass, executed locally **and** in CI
+- ✅ Firebase Test Lab Robo test passes (SmallPhone.arm, API 35) — debug build
+- ✅ All 8 report sections implemented; 5-dimension scoring tested
 
-**The app is ready for production deployment with the noted limitations. The two blocked items are not defects — they are missing domain specifications that require telecom/business expert input.**
+**What is NOT verified (and why the verdict is not "READY"):**
+- ❌ **Neither the release APK nor the AAB has been launched on a device.**
+  The passing Test Lab run exercised the *debug* build only. Debug-vs-release
+  behavioural comparison — explicitly required by Phase 6 — could not be made.
+- ❌ The 5-device compatibility matrix is specified but unexecuted.
+- ❌ The 20 functional tests are specified (as Robo directives) but have not
+  been run as targeted tests; the passing run was a smoke crawl.
+- ⚠️ RSRP thresholds and the (entirely absent) commercial model require domain
+  authority before they can be validated or implemented.
+
+**Why not "NOT READY":** there is no evidence of a defect. Everything that could
+be executed is green, and both release artifacts are structurally sound.
+
+**Why not "READY":** the mission's own bar — functional + engineering +
+regression + device compatibility + release build validation — is not yet met.
+Two of the five gates (device compatibility, release-on-device) are unexecuted.
+
+**Minimum path to "READY":** run the release APK through Firebase Test Lab and
+execute the 5-device matrix. Both require only quota, not code changes.
 
 ---
 

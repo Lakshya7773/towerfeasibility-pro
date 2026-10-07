@@ -25,7 +25,7 @@ across different Android versions, screen sizes, and hardware configurations.
 |-------|-------|
 | Model | SmallPhone.arm |
 | API Level | 35 |
-| Resolution | 1280x720 |
+| Resolution | 720x1280 |
 | API Range | 26-35 |
 | Purpose | Baseline test — smallest screen, most common config |
 | Priority | P0 |
@@ -37,7 +37,7 @@ across different Android versions, screen sizes, and hardware configurations.
 |-------|-------|
 | Model | MediumPhone.arm |
 | API Level | 35 |
-| Resolution | 2400x1080 |
+| Resolution | 1080x2400 |
 | API Range | 26-36 |
 | Purpose | Standard phone — most common user device |
 | Priority | P0 |
@@ -49,7 +49,7 @@ across different Android versions, screen sizes, and hardware configurations.
 |-------|-------|
 | Model | Pixel2.arm |
 | API Level | 33 |
-| Resolution | 1920x1080 |
+| Resolution | 1080x1920 |
 | API Range | 26-33 |
 | Purpose | Google Pixel class — clean Android experience |
 | Priority | P1 |
@@ -61,7 +61,7 @@ across different Android versions, screen sizes, and hardware configurations.
 |-------|-------|
 | Model | MediumTablet.arm |
 | API Level | 34 |
-| Resolution | 2560x1600 |
+| Resolution | 1600x2560 |
 | API Range | 26-35 |
 | Purpose | Tablet form factor — larger screen, landscape |
 | Priority | P1 |
@@ -73,7 +73,7 @@ across different Android versions, screen sizes, and hardware configurations.
 |-------|-------|
 | Model | SmallPhone.arm |
 | API Level | 30 |
-| Resolution | 1280x720 |
+| Resolution | 720x1280 |
 | API Range | 26-35 |
 | Purpose | Older Android version — backward compatibility |
 | Priority | P1 |

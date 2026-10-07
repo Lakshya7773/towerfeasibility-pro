@@ -141,18 +141,25 @@ const functionalTests = [
   },
   {
     id: 'FT-009',
-    name: 'Commercial feasibility',
-    description: 'Verify commercial feasibility section renders',
+    name: 'Report sections / scoring',
+    description: 'Verify the feasibility summary and report sections render',
+    // NOTE: the app implements a 5-dimension TECHNICAL score
+    // (population, saturation, resources, soil, LoS) and an 8-section
+    // report. It does NOT implement a commercial model — there is no
+    // CAPEX / OPEX / revenue / ROI / payback anywhere in app/src.
+    // This test therefore checks what actually ships. The absence of a
+    // commercial module is recorded as a product scope gap in
+    // docs/QA-REPORT.md, NOT asserted here as passing.
     steps: [
       'Navigate to analysis results',
-      'Verify CAPEX appears',
-      'Verify OPEX appears',
-      'Verify revenue appears',
-      'Verify ROI appears',
-      'Verify payback appears',
+      'Verify overall score (1-10) is shown',
+      'Verify recommendation (Go / Conditional / No-Go) is shown',
+      'Verify report contains sections 1-8',
+      'Verify no section renders NaN/Infinity/undefined',
     ],
-    expected: 'Commercial feasibility section renders without NaN/Infinity',
+    expected: 'Score + recommendation + 8 report sections render without NaN',
     severity: 'P1',
+    gap: 'No commercial feasibility module (CAPEX/OPEX/revenue/ROI/payback) exists in the product',
   },
   {
     id: 'FT-010',
@@ -433,7 +440,16 @@ ${t.steps.map(s => `1. ${s}`).join('\n')}
 **Expected:** ${t.expected}
 
 **Severity:** ${t.severity}
-`).join('\n')}
+${t.gap ? `\n**PRODUCT GAP:** ${t.gap}\n` : ''}`).join('\n')}
+
+## Product Scope Gaps Identified During Test Design
+
+The mission brief specified tests for a commercial feasibility section
+(CAPEX / OPEX / revenue / ROI / payback). **No such module exists in the
+application source.** The app implements a 5-dimension technical
+feasibility score and an 8-section report. This is a scope gap, not a
+failing test — it is recorded here so it is not mistaken for a defect or
+silently asserted as passing.
 
 ## Execution
 
