@@ -1,0 +1,129 @@
+name: Firebase Test Lab
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Name of the APK artifact to test'
+        required: true
+        type: string
+      device_model:
+        description: 'Test Lab device model'
+        required: false
+        type: string
+        default: 'SmallPhone.arm'
+      device_version:
+        description: 'Android API level'
+        required: false
+        type: string
+        default: '35'
+      test_timeout:
+        description: 'Test timeout (e.g., 10m, 15m)'
+        required: false
+        type: string
+        default: '10m'
+    secrets:
+      GCP_SA_KEY:
+        description: 'GCP service account JSON key'
+        required: true
+      FIREBASE_PROJECT_ID:
+        description: 'Firebase project ID'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  robo-test:
+    name: Robo Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download APK artifact from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/ci
+
+      - name: Verify APK exists
+        run: |
+          APK=$(find dist/ci -name '*.apk' | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::No APK found in dist/ci/"
+            exit 1
+          fi
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          echo "APK_SIZE=$(stat -c%s "$APK") bytes"
+          ls -la "$APK"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+      - name: Run Firebase Test Lab Robo test
+        id: testlab
+        run: |
+          set +e
+          gcloud firebase test android run \
+            --type robo \
+            --app "$APK" \
+            --device model=${{ inputs.device_model }},version=${{ inputs.device_version }},locale=en,orientation=portrait \
+            --timeout ${{ inputs.test_timeout }} \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --record-video \
+            --results-dir="testlab-${{ github.run_id }}" \
+            --format="json" > testlab-output.json 2> testlab-stderr.log
+          EXIT_CODE=$?
+          set -e
+
+          # PASS only if exit code is 0 (ROLLUP_SUCCESS)
+          if [ $EXIT_CODE -eq 0 ]; then
+            TEST_STATUS="PASS"
+          else
+            TEST_STATUS="FAIL"
+          fi
+
+          echo "test_status=$TEST_STATUS" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testlab-results-${{ github.run_id }}
+          path: |
+            testlab-output.json
+            testlab-stderr.log
+          retention-days: 14
+
+      - name: Report test summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Firebase Test Lab Results
+
+          | Field | Value |
+          |-------|-------|
+          | **Status** | ${{ steps.testlab.outputs.test_status || 'UNKNOWN' }} |
+          | **Exit Code** | ${{ steps.testlab.outputs.exit_code || 'N/A' }} |
+          | **Device** | ${{ inputs.device_model }} (API ${{ inputs.device_version }}) |
+          | **APK** | $(basename "$APK") |
+
+          > Test evidence uploaded as artifact: \`testlab-results-${{ github.run_id }}\`
+          > Full results (screenshots, video, logcat) available in Firebase console.
+          EOF
+
+      - name: Fail workflow if test failed
+        if: steps.testlab.outputs.test_status == 'FAIL'
+        run: |
+          echo "::error::Firebase Test Lab test failed"
+          exit 1

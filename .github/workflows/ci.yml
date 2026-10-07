@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_test_lab:
+        description: 'Run Firebase Test Lab after build'
+        required: false
+        default: 'false'
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -185,3 +191,17 @@ jobs:
           > \`\`\`
           EOF
           echo "Artifact metadata reported to job summary."
+
+  # ---------------------------------------------------------------------
+  # Firebase Test Lab — manual only (workflow_dispatch with run_test_lab=true)
+  # ---------------------------------------------------------------------
+  test-lab:
+    name: Firebase Test Lab
+    needs: build-debug
+    if: github.event_name == 'workflow_dispatch' && inputs.run_test_lab == 'true'
+    uses: ./.github/workflows/firebase-test-lab.yml
+    with:
+      artifact_name: towerfeasibility-debug-apk
+    secrets:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
