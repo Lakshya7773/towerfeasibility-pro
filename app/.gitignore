@@ -22,6 +22,9 @@ android/app/src/main/java/inline/
 # Secrets / signing material
 *.jks
 *.keystore
+# The standard Android debug keystore is public (password "android") and is
+# required for a fresh clone to build. The release keystore stays excluded.
+!android/app/debug.keystore
 *.p8
 *.p12
 *.key
