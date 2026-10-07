@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build outputs — the native SOURCE (android/) IS tracked because this
+# project carries hand-edited Gradle/manifest config (signing, arm64-only,
+# no INTERNET permission). Do not ignore the whole native folder.
+android/build/
+android/app/build/
+android/.gradle/
+android/.cxx/
+android/local.properties
+android/app/src/main/java/inline/
+.kotlin/
+*.jsbundle
+
+# Secrets / signing material
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+.env*.local
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# typescript
+*.tsbuildinfo

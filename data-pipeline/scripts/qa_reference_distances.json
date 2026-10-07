@@ -1,0 +1,50 @@
+[
+ {
+  "name": "Ajmer->Jaipur",
+  "lat1": 26.4499,
+  "lon1": 74.6399,
+  "lat2": 26.9124,
+  "lon2": 75.7873,
+  "geodesicKm": 125.173623
+ },
+ {
+  "name": "equator 1deg lon",
+  "lat1": 0,
+  "lon1": 0,
+  "lat2": 0,
+  "lon2": 1,
+  "geodesicKm": 111.319491
+ },
+ {
+  "name": "short 1km",
+  "lat1": 26,
+  "lon1": 75,
+  "lat2": 26.009,
+  "lon2": 75,
+  "geodesicKm": 0.997093
+ },
+ {
+  "name": "pole-ish",
+  "lat1": 60,
+  "lon1": 10,
+  "lat2": 61,
+  "lon2": 11,
+  "geodesicKm": 124.233131
+ },
+ {
+  "name": "long 500km",
+  "lat1": 24,
+  "lon1": 70,
+  "lat2": 28,
+  "lon2": 75,
+  "geodesicKm": 668.407579
+ },
+ {
+  "name": "N-S 1deg",
+  "lat1": 26,
+  "lon1": 75,
+  "lat2": 27,
+  "lon2": 75,
+  "geodesicKm": 110.795722
+ }
+]

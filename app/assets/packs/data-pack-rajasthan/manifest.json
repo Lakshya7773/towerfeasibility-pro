@@ -1,0 +1,71 @@
+{
+  "region": "rajasthan",
+  "region_name": "Rajasthan",
+  "state": "Rajasthan",
+  "version": "1.0.0",
+  "created_at": "2026-10-07T04:07:25.594845+00:00",
+  "bounds": {
+    "min_lat": 23.0,
+    "max_lat": 30.3,
+    "min_lon": 69.4,
+    "max_lon": 78.3
+  },
+  "source_dates": {
+    "towers": "2024-06-01",
+    "fiber": "2024-06-01",
+    "soil": "2007-01-01",
+    "population": "2020-01-01",
+    "elevation": "2000-02-11",
+    "basemap": "2026-10-01"
+  },
+  "files": [
+    {
+      "path": "vectors/towers.sqlite",
+      "size": 13283328,
+      "sha256": "1fda013275267a63a37025709fce43b90bbb99c5f0ccd627f46b366a475e8bf7",
+      "md5": "5914f2278c720e378c797cce73428741"
+    },
+    {
+      "path": "vectors/fiber.sqlite",
+      "size": 63852544,
+      "sha256": "67412bb6711bfbaa3a5d2dfe4d2d14575ef1470c3afc1e442bd8e8b67904d849",
+      "md5": "fec4fd243155d215ef6300f18bdb232d"
+    },
+    {
+      "path": "vectors/soil.geojson",
+      "size": 202284,
+      "sha256": "d33587bb6222eea061a2901e09006229a44ef873dffeb091325044d61f8401f7",
+      "md5": "a4d0b206a5d5837c71a7eb3feeafc13a"
+    },
+    {
+      "path": "config/soil-classification.json",
+      "size": 4190,
+      "sha256": "c5535ba0755a7839251a1514822ddf70bc425ab32f79cd9c8b3fe605fb998092",
+      "md5": "998f3dedbcb2abddb6d27b893a87861f"
+    },
+    {
+      "path": "tiles/base-map.pmtiles",
+      "size": 84198164,
+      "sha256": "2712e7e2d7855a20bd0a61d09cdea533529106351fcb0eda04201b906bf9dd1d",
+      "md5": "5a4fc1382d944c75d21bf90d0f24515a"
+    },
+    {
+      "path": "population/population.tif",
+      "size": 1469498,
+      "sha256": "478e174dca4c4bb525a8b943b16c33446b00b54b956ca3e859614ab2a3c450e2",
+      "md5": "3f2edfd0d68f6a957a483e81654cf0d7"
+    },
+    {
+      "path": "config/population.json",
+      "size": 369,
+      "sha256": "585b8065ffb3a373b2c376626879d7197780f3f84509e747d4f7b48e78d75900",
+      "md5": "1fe5d36e519c02bc01b460df076e533f"
+    },
+    {
+      "path": "elevation/elevation.tif",
+      "size": 82182295,
+      "sha256": "f71a4d705200c1f9efcf9b276fc3d2859a588d68667ca2debdc424d00419817e",
+      "md5": "f01e18714e151fe06f439d328cea204f"
+    }
+  ]
+}

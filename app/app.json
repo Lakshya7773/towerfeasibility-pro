@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "TowerFeasibility Pro",
+    "slug": "towerfeasibility",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "towerfeasibility",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.digitalshift.towerfeasibility"
+    },
+    "android": {
+      "package": "com.digitalshift.towerfeasibility",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-asset",
+      "expo-sharing",
+      ["expo-build-properties", {
+        "android": {
+          "newArchEnabled": false
+        }
+      }]
+    ]
+  }
+}

@@ -1,0 +1,127 @@
+Tower Feasibility Report
+Ajmer Tower Site A · Rajasthan · 2026-10-04
+Coordinates: 26.91240, 75.78730 · Prepared by Digital Shift Solutions
+
+
+1. Executive Summary
+
+
+5.6/10                     Conditional
+
+Key findings
+
+   Urban demand (900/km2).
+   Fiber 1.2 km away (Poor).
+   Soil: Rocky — foundation suitability Best.
+   Line-of-sight clear over 8.643 km.
+
+Critical issues
+
+   Saturated market (24.19/km2) — strong justification required.
+
+
+2. Population Density
+ Within 2 km                                                     11,700
+ Within 5 km                                                     72,900
+ Within 10 km                                                    2,85,300
+ Local density                                                   900 /km²
+ Classification                                                  Urban
+ Serviceable population                                          8,190
+
+
+3. Competitor Towers
+ Within 1 km                                                     76
+ Within 2 km                                                     264
+ Within 5 km                                                     1283
+ Density                                                         24.19 /km²
+ Saturation                                                      Saturated
+ Co-location opportunity                                         Yes
+
+Nearest towers
+
+ Tower #44077                                                    1.04 km · Ground
+ Tower #44053                                                    1.14 km · Roof
+ Tower #44021                                                    1.22 km · Roof
+ Tower #44014                                                    1.25 km · Ground
+ Tower #44016                                                    1.28 km · Ground
+ Tower #44069                                                    1.41 km · Ground
+ Tower #43904                                                    1.44 km · Roof
+ Tower #43923                                                    1.48 km · Ground
+ Tower #43878                                                    1.49 km · Roof
+ Tower #43994                                                    1.52 km · Roof
+4. Nearby Resources
+
+ Nearest fiber                                             1.2 km
+ Fiber route                                               SJC20 TO SJC21
+ Accessibility                                             Poor
+ Resource score                                            2/5
+
+
+5. RoW Compliance
+
+ State                                                     Rajasthan
+ Application fee                                           ₹10,000
+ Estimated total                                           ₹10,100
+ Approval timeline                                         45 days (deemed approval 67 days)
+
+Required documents
+
+   Application form (Form-I)
+   Proof of ownership / lease agreement for the site
+   Layout plan showing tower position and access
+   Structural stability certificate
+   EMF self-certification (DoT format)
+   GST registration / PAN of the applicant
+   No-objection from the local authority (if applicable)
+
+
+6. Soil & Foundation
+ FAO code                                                  I-Be-Lc-bc
+ Soil type                                                 Rocky
+ Foundation suitability                                    Best
+ Note                                                      Lithosols - shallow rock, best case for foundation
+
+
+7. Administration
+
+ State                                                     Rajasthan
+ District                                                  Ajmer
+ Governing authority                                       DoT Licensed Service Area + Rajasthan State RoW Portal
+
+Compliance requirements
+
+   DoT / WPC site clearance for spectrum use
+   Rajasthan State Right of Way (RoW) permission
+   Local municipal / Gram Panchayat No-Objection Certificate
+   EMF self-certification and periodic audit (DoT norms)
+   Structural stability certificate for the tower
+   District Collector intimation (Ajmer)
+
+
+8. Line-of-Sight / Terrain
+ Status                                                    Clear
+ Path distance                                             8.643 km
+ Fresnel clearance                                         Yes
+ Recommended tower height                                  30 m
+ Free-space path loss                                      117.6 dB
+Estimated RSRP                                                              -53.6 dBm
+
+    Elevation 480–510 m over 8.6 km
+
+
+
+
+    blue = terrain · red dashed = line of sight
+
+
+
+
+Disclaimers. Tower locations are from the Tarang Sanchar registry (2022 vintage) and may undercount recent builds. Soil classification is derived from the
+FAO Digital Soil Map of the World (1:5M) — a screening input only; a geotechnical survey (borehole / plate-load test) is required before foundation design.
+Population figures are modelled (WorldPop 2020, 1 km grid), not a census. Fiber data covers BharatNet/BBNL public networks; urban private fiber is not
+represented. This report supports planning and does not constitute engineering or legal advice.
+
+
+
+                                                  TowerFeasibility Pro v1.0 · Digital Shift Solutions · generated offline
+

@@ -1,0 +1,16 @@
+{
+  "source": "WorldPop 2020 1km unadjusted (Aggregated)",
+  "units": "people_per_cell",
+  "year": 2020,
+  "cell_area_km2": 0.769142,
+  "nodata": -99999,
+  "region": "rajasthan",
+  "bounds": {
+    "min_lat": 23,
+    "max_lat": 30.3,
+    "min_lon": 69.4,
+    "max_lon": 78.3
+  },
+  "masked_to_state": true,
+  "note": "divide cell value by cell_area_km2 for people/km2"
+}

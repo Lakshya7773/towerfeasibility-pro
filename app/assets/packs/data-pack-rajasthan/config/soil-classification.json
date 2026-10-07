@@ -1,0 +1,146 @@
+{
+  "fao_group_map": {
+    "A": {
+      "soil_type": "Red",
+      "foundation_suitability": "Good",
+      "note": "Acrisols - well drained red soil, standard foundation"
+    },
+    "B": {
+      "soil_type": "Alluvial",
+      "foundation_suitability": "Good",
+      "note": "Cambisols - brown/alluvial, standard foundation"
+    },
+    "C": {
+      "soil_type": "Black",
+      "foundation_suitability": "Fair",
+      "note": "Chernozems - deep foundation recommended"
+    },
+    "D": {
+      "soil_type": "Podzolic",
+      "foundation_suitability": "Fair",
+      "note": "Podzoluvisols - leached, verify bearing capacity"
+    },
+    "E": {
+      "soil_type": "Rocky",
+      "foundation_suitability": "Best",
+      "note": "Rendzinas - shallow rocky, shallow foundation possible"
+    },
+    "F": {
+      "soil_type": "Laterite",
+      "foundation_suitability": "Good",
+      "note": "Ferralsols - lateritic, standard foundation"
+    },
+    "G": {
+      "soil_type": "Marshy",
+      "foundation_suitability": "Poor",
+      "note": "Gleysols - waterlogged, pile foundation likely"
+    },
+    "H": {
+      "soil_type": "Black",
+      "foundation_suitability": "Fair",
+      "note": "Phaeozems - deep foundation recommended"
+    },
+    "I": {
+      "soil_type": "Rocky",
+      "foundation_suitability": "Best",
+      "note": "Lithosols - shallow rock, best case for foundation"
+    },
+    "J": {
+      "soil_type": "Alluvial",
+      "foundation_suitability": "Good",
+      "note": "Fluvisols - riverine alluvium, standard foundation"
+    },
+    "K": {
+      "soil_type": "Black",
+      "foundation_suitability": "Fair",
+      "note": "Kastanozems - deep foundation recommended"
+    },
+    "L": {
+      "soil_type": "Red",
+      "foundation_suitability": "Good",
+      "note": "Luvisols - clay-enriched red/brown, standard foundation"
+    },
+    "M": {
+      "soil_type": "Alluvial",
+      "foundation_suitability": "Fair",
+      "note": "Greyzems - verify drainage"
+    },
+    "N": {
+      "soil_type": "Red",
+      "foundation_suitability": "Good",
+      "note": "Nitisols - deep red, standard foundation"
+    },
+    "O": {
+      "soil_type": "Marshy",
+      "foundation_suitability": "Poor",
+      "note": "Histosols - organic/peat, pile foundation"
+    },
+    "P": {
+      "soil_type": "Podzolic",
+      "foundation_suitability": "Fair",
+      "note": "Podzols - sandy leached, verify bearing capacity"
+    },
+    "Q": {
+      "soil_type": "Sandy",
+      "foundation_suitability": "Fair",
+      "note": "Arenosols - sandy, wide footing recommended"
+    },
+    "R": {
+      "soil_type": "Sandy",
+      "foundation_suitability": "Fair",
+      "note": "Regosols - weakly developed, verify bearing capacity"
+    },
+    "S": {
+      "soil_type": "Saline",
+      "foundation_suitability": "Poor",
+      "note": "Solonetz - alkaline/sodic, special foundation"
+    },
+    "T": {
+      "soil_type": "Volcanic",
+      "foundation_suitability": "Good",
+      "note": "Andosols - volcanic, standard foundation"
+    },
+    "U": {
+      "soil_type": "Rocky",
+      "foundation_suitability": "Best",
+      "note": "Rankers - shallow rocky, shallow foundation possible"
+    },
+    "V": {
+      "soil_type": "Black",
+      "foundation_suitability": "Fair",
+      "note": "Vertisols - expansive black cotton soil, SPECIAL foundation"
+    },
+    "W": {
+      "soil_type": "Alluvial",
+      "foundation_suitability": "Fair",
+      "note": "Planosols - poor drainage, verify"
+    },
+    "X": {
+      "soil_type": "Sandy",
+      "foundation_suitability": "Fair",
+      "note": "Xerosols - arid, wide footing recommended"
+    },
+    "Y": {
+      "soil_type": "Sandy",
+      "foundation_suitability": "Fair",
+      "note": "Yermosols - arid desert, wide footing recommended"
+    },
+    "Z": {
+      "soil_type": "Saline",
+      "foundation_suitability": "Poor",
+      "note": "Solonchaks - saline, special foundation"
+    }
+  },
+  "polygon_counts_by_soil_type": {
+    "Alluvial": 161,
+    "Red": 156,
+    "Rocky": 122,
+    "Sandy": 66,
+    "Black": 60,
+    "Marshy": 59,
+    "Saline": 9,
+    "Laterite": 1
+  },
+  "total_polygons": 634,
+  "source": "FAO/UNESCO Digital Soil Map of the World, 1:5M (via india-geodata)"
+}
