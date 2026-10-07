@@ -251,6 +251,28 @@ The data pack is packaged as Android resources (`res/`) with obfuscated names �
 
 Runtime resolution path: `bundledPacks.generated.ts` → `require('../../assets/packs/...')` → `Asset.fromModule()` → `installFromAssets()` copies to `<document>/data-packs/data-pack-rajasthan/`. Verified that `DataPackManager.installFromAssets` handles this correctly.
 
+### 8.2 Release Artifact Static Scan
+
+| Check | Result |
+|-------|--------|
+| Package / application ID | ✅ `com.digitalshift.towerfeasibility` |
+| versionCode / versionName | ✅ 1 / "1.0.0" |
+| compileSdk / targetSdk | ✅ 36 / 36 |
+| minSdk | ✅ 24 |
+| ABI | ✅ `arm64-v8a` only (no x86) |
+| Debuggable flag | ✅ Absent (not debuggable) |
+| INTERNET permission | ✅ Absent (fully offline) |
+| Embedded secrets (API keys, private keys, tokens) | ✅ None found |
+| Dev-only endpoints | ✅ None active — `localhost:8081`/`metro`/`__DEV__` appear once each as library constants, not live endpoints |
+| app.config | ✅ No dev plugins (no expo-dev-client) |
+| Signing cert | ✅ CN=TowerFeasibility Pro, O=DigitalShift, valid |
+
+Scan method: extracted `assets/index.android.bundle` and `assets/app.config` and grepped for `http(s)://` hosts, `__DEV__|localhost|127.0.0.1|10.0.2.2|metro|expo-dev`, and secret patterns (`AIza…`, `sk-…`, `ghp_…`, PEM private keys).
+
+### 8.3 Not Yet Validated
+
+The release APK has **not been installed or launched on any device**. Static inspection confirms it is well-formed and correctly packaged, but runtime release behaviour (launch, analysis, report, PDF export) is **unverified**. This is the single largest remaining gap.
+
 ---
 
 ## 9. Known Defects
