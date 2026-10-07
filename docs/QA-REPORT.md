@@ -315,12 +315,41 @@ correctly packaged, but runtime release behaviour (launch, analysis, report, PDF
 export) is **unverified**, and therefore the **debug-vs-release behavioural
 comparison cannot be made**. This is the single largest remaining gap.
 
-### 8.5 CI Workflow Gap
+### 8.5 CI Workflow Gap — release pipeline is non-functional
 
-`release.yml` produces only an APK. To ship to Play Store, a `bundleRelease`
-step and `.aab` artifact upload should be added. Not changed in this pass —
-modifying the working release pipeline was judged higher-risk than documenting
-it, and the AAB has been built and validated manually.
+`release.yml` produces only an APK, and **it cannot run at all** in CI. A manual
+dispatch (run `37654787377`) was executed to test it:
+
+```
+✓ Set up job
+✓ Run actions/checkout@v4
+✓ Run actions/setup-node@v4
+✓ Run actions/setup-java@v4
+✓ Set up Android SDK / NDK
+✓ Install JS dependencies
+X Decode release keystore          ← ##[error]KEYSTORE_BASE64 secret is not set
+- Build release APK                (skipped)
+```
+
+**Root cause:** the four repository secrets the workflow requires are not set:
+`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+The workflow's own header documents how to create the first one:
+
+```bash
+base64 -w0 ~/.keystore/towerfeasibility-release.keystore | gh secret set KEYSTORE_BASE64
+```
+
+**Impact:** there is no automated path to a signed release artifact. The release
+APK and AAB in §8 were produced **locally**, where the keystore is available.
+Anyone else — or any future CI run — cannot reproduce them until the secrets are
+set.
+
+**Also missing:** no `bundleRelease` step, so CI would produce only an APK even
+once the secrets exist.
+
+**Not fixed in this pass:** setting signing secrets is a credential operation and
+requires explicit approval (mission stop-condition: "a signing/release credential
+is required"). See §13.
 
 ---
 
@@ -369,15 +398,34 @@ commercial business case, that capability is missing entirely.
 
 ## 12. Release Blockers
 
-**None.** The app is functionally complete and passes all available tests.
+| ID | Severity | Blocker | Detail |
+|----|----------|---------|--------|
+| RB-001 | **P1** | Release artifact never executed on a device | The passing Test Lab run used the *debug* build. Phase 6 requires debug-vs-release comparison; neither the release APK nor the AAB has been launched. |
+| RB-002 | **P2** | CI release pipeline cannot build | `release.yml` fails at `Decode release keystore` — `KEYSTORE_BASE64` (+ 3 others) are not set. No automated path to a signed artifact. |
+| RB-003 | **P2** | No AAB in CI | `release.yml` has no `bundleRelease` step; Play Store artifact is not produced by any workflow. |
+
+None of these are application defects. RB-001 needs Test Lab quota; RB-002/RB-003
+need credential approval and a small workflow change.
 
 ---
 
 ## 13. Recommended Fixes
 
-1. **RSRP Thresholds:** Define strong/weak signal boundaries based on telecom standards (e.g., -85 dBm for 4G LTE)
-2. **Commercial Model:** Implement CAPEX/OPEX/revenue calculations with documented assumptions
-3. **AAB Build:** Consider adding bundleRelease for Play Store distribution
+Ordered by value per unit of effort.
+
+| # | Fix | Effort | Unblocks |
+|---|-----|--------|----------|
+| 1 | Run the release APK through Firebase Test Lab (manual dispatch already wired) | 1 Test Lab run | RB-001 — the single biggest evidence gap |
+| 2 | Execute the 5-device matrix (`docs/device-test-matrix.sh`) | ~5 Test Lab runs | Phase 5 compatibility evidence |
+| 3 | Set the 4 release secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) | 5 min, **needs approval** | RB-002 |
+| 4 | Add a `bundleRelease` step + `.aab` upload to `release.yml` | Small workflow edit | RB-003 |
+| 5 | Run the 20 functional tests as targeted Robo directives rather than a smoke crawl | Medium | Stronger Phase 2 evidence |
+| 6 | Implement a commercial feasibility module | **New feature** — needs domain authority for CAPEX/OPEX/revenue assumptions | GAP-001 |
+| 7 | Define and document RSRP strong/weak thresholds | Needs RF domain authority | C6 |
+| 8 | Document the provenance of the tower-saturation and population-density bands | Needs domain authority | §11 |
+
+Items 6-8 must **not** be implemented by inventing values — see the mission's
+rule 4 and 5.
 
 ---
 
