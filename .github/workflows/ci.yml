@@ -9,7 +9,7 @@ on:
       run_test_lab:
         description: 'Run Firebase Test Lab after build'
         required: false
-        default: true'
+        default: 'true'
         type: boolean
 
 concurrency:
