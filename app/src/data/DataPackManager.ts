@@ -23,6 +23,16 @@ export interface PackManifest {
   installedAt?: number;
   bounds: { min_lat: number; max_lat: number; min_lon: number; max_lon: number };
   files: { path: string; size: number; sha256: string; md5?: string }[];
+  /**
+   * Upstream publication vintages, one per dataset. These are the SOURCE dates,
+   * never the pack build time — see data-pipeline/scripts/provenance.py.
+   */
+  source_dates?: Record<string, string>;
+  /** Full provenance records (source/type/vintage/resolution/limitation). */
+  provenance?: Record<string, {
+    source: string; provider?: string; type: string; vintage: string;
+    resolution?: string; coverage?: string; status?: string; limitation?: string;
+  }>;
 }
 
 export const PACKS_DIR = new Directory(Paths.document, 'data-packs');

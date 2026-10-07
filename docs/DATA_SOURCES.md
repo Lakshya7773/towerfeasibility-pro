@@ -21,6 +21,9 @@ All paths relative to `/home/lakshya/company/towerfeasibility/data/`.
 - **License:** CC0 1.0 (attribute DataMeet + original govt source)
 - **Coverage:** All India cell tower locations
 - **Caveat:** Data from **2022**; may be incomplete. The DoT portal itself has no bulk export — this is the community extraction.
+- **Vintage source of truth:** `data-pipeline/scripts/provenance.py`. Dataset vintages are
+  defined once there and flow into every pack manifest and the report. A dataset's vintage is
+  its *upstream publication date*, never a build timestamp.
 
 ### Secondary — NIC / BharatMaps
 | File | Size | Format |

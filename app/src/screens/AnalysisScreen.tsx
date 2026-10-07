@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '../state/store';
+import { buildDecisionObject } from '../report/DecisionObject';
 
 function Row({ k, v }: { k: string; v: string | number }) {
   return (
@@ -47,9 +48,14 @@ export default function AnalysisScreen({ navigation }: any) {
       </View>
     );
   }
+  // The verdict is a TECHNICAL SCREENING outcome, never an investment decision.
+  const d = buildDecisionObject(r);
   const recColor =
-    s2.recommendation === 'Go' ? '#16a34a'
-      : s2.recommendation === 'Conditional' ? '#d97706' : '#dc2626';
+    d.screeningResult === 'FAVOURABLE' ? '#16a34a'
+      : d.screeningResult === 'MIXED' ? '#d97706'
+        : d.screeningResult === 'INSUFFICIENT DATA' ? '#64748b' : '#dc2626';
+  const recLabel = d.screeningResult === 'INSUFFICIENT DATA'
+    ? 'INSUFFICIENT DATA' : `${d.screeningResult} (technical)`;
 
   return (
     <ScrollView style={s.wrap} contentContainerStyle={{ padding: 16 }}>
@@ -62,9 +68,21 @@ export default function AnalysisScreen({ navigation }: any) {
       <View style={s.scoreCard}>
         <Text style={s.score}>{s2.overallScore}/10</Text>
         <View style={[s.badge, { backgroundColor: recColor }]}>
-          <Text style={s.badgeTxt}>{s2.recommendation}</Text>
+          <Text style={s.badgeTxt}>{recLabel}</Text>
         </View>
       </View>
+
+      <Text style={s.note}>
+        Technical screening only. Commercial feasibility is NOT assessed.
+        Data confidence: {d.confidence}.
+      </Text>
+
+      <Section title="Why this result">
+        {d.contributions.map((c: { key: string; label: string; maxPoints: number; points: number; missingData: boolean }) => (
+          <Row key={c.key} k={`${c.label} (max ${c.maxPoints})`}
+            v={`${c.points > 0 ? '+' : ''}${c.points}${c.missingData ? ' (no data)' : ''}`} />
+        ))}
+      </Section>
 
       <Section title="Key findings">
         {s2.keyFindings.map((f: string, i: number) => (

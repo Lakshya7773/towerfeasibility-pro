@@ -22,10 +22,10 @@ import { classifyAccessibility } from '../../app/src/analysis/resourceEngine';
 import { lookupSoil, type SoilPolygon } from '../../app/src/analysis/soilEngine';
 import { lookupAdmin, type AdminBoundary } from '../../app/src/analysis/adminEngine';
 import { analyzeLos } from '../../app/src/analysis/losEngine';
-import { scoreFeasibility } from '../../app/src/report/ReportBuilder';
+import { scoreFeasibility, buildReport } from '../../app/src/report/ReportBuilder';
+import { buildDecisionObject } from '../../app/src/report/DecisionObject';
 import { analyzeRow, DEFAULT_ROW_RULES } from '../../app/src/analysis/rowEngine';
 import { buildReportHtml, terrainSvg } from '../../app/src/report/reportHtml';
-import { buildReport } from '../../app/src/report/ReportBuilder';
 import { decodeWkbLine } from '../../app/src/utils/wkb';
 
 const PACK = '/home/lakshya/company/towerfeasibility/dist/packs/data-pack-rajasthan';
@@ -385,13 +385,21 @@ const rep = buildReport(site as any, 'rajasthan', bundle());
 const html = buildReportHtml(rep);
 
 console.log('\n-- section completeness --');
-for (const h of ['1. Executive Summary', '2. Population Density', '3. Competitor Towers',
-  '4. Nearby Resources', '5. RoW Compliance', '6. Soil &amp; Foundation',
-  '7. Administration', '8. Line-of-Sight']) {
+for (const h of ['1. Executive Summary', '2. Site Identification', '3. Screening Result',
+  '4. Why This Result', '5. Demand / Population', '6. Existing Tower Environment',
+  '7. Network Opportunity', '8. Infrastructure Resources', '9. Fiber Availability',
+  '10. Soil / Terrain Screening', '11. RF / RSRP Screening',
+  '12. Line-of-Sight / Fresnel Screening', '13. Data Provenance',
+  '14. Data Quality / Confidence', '15. Assumptions', '16. Limitations',
+  '17. Sensitivity', '18. Unknowns / Required Field Validation',
+  '19. Recommended Next Actions', '20. Commercial Feasibility Status']) {
   check(`section present: ${h}`, html.includes(h), 'found');
 }
 check('disclaimer present', html.includes('screening input only') && html.includes('geotechnical survey'), 'yes');
-check('no placeholder text (TODO/FIXME/lorem/undefined/NaN)', !/TODO|FIXME|lorem ipsum|undefined|NaN|\[object/i.test(html), 'clean');
+// Case-sensitive and word-bounded: a case-insensitive /NaN/ matches the word
+// "Provenance" (prove-nan-ce), which is a false positive, not a placeholder.
+check('no placeholder text (TODO/FIXME/lorem/undefined/NaN)',
+  !/TODO|FIXME|lorem ipsum|\bundefined\b|\bNaN\b|\[object/.test(html), 'clean');
 check('no debug output', !/console\.|DEBUG|__dev/i.test(html), 'clean');
 check('valid HTML skeleton', html.startsWith('<!DOCTYPE html>') && html.trimEnd().endsWith('</html>'), 'ok');
 // The report bundle's LoS profile is empty, so terrainSvg() emits nothing and
@@ -410,7 +418,10 @@ check('population 2km in HTML matches model',
   html.includes(rep.populationAnalysis.populationWithin2km.toLocaleString()), 'yes');
 check('tower density in HTML matches model', html.includes(`${rep.towerAnalysis.densityPerKm2} /km²`), 'yes');
 check('soil type in HTML matches model', html.includes(rep.soilAnalysis.soilType), 'yes');
-check('RoW fee in HTML matches model', html.includes(rep.rowAnalysis.applicationFee.toLocaleString()), 'yes');
+// The report shows the estimated TOTAL RoW cost (fee + other charges), not the
+// bare application fee, so assert against the value the report actually renders.
+check('RoW estimated total in HTML matches model',
+  html.includes(rep.rowAnalysis.estimatedTotalCost.toLocaleString()), 'yes');
 check('coordinates rendered to 5 dp', html.includes('26.44990') && html.includes('74.63990'), 'yes');
 
 console.log('\n-- XSS / injection --');
@@ -599,6 +610,58 @@ check('deemed approval = 67 days', rowR.deemedApprovalDays === 67, `${rowR.deeme
 check('deemed approval > rejection timeline (67 > 45)', rowR.deemedApprovalDays > rowR.approvalTimelineDays, 'ok');
 check('7 required documents listed', rowR.requiredDocuments.length === 7, `${rowR.requiredDocuments.length}`);
 check('state propagated', rowR.state === 'Rajasthan', rowR.state);
+
+// ===========================================================================
+section('11. DECISION OBJECT — adversarial screening verdicts');
+// ===========================================================================
+// These guard the mission §8 requirement: low competition at a low-demand site
+// must never be reported as a favourable opportunity, and missing data must
+// never be quietly scored into a favourable verdict.
+
+const advSite = { id: 'adv', name: 'Adv', lat: 26.45, lon: 74.64, createdAt: '' };
+const decide = (b: any) => buildDecisionObject(buildReport(advSite as any, 'rajasthan', b));
+
+const dHighDemand = decide(bundle({ population: { densityClassification: 'Dense urban', densityPerKm2: 2000 } }));
+check('high demand + low density -> FAVOURABLE',
+  dHighDemand.screeningResult === 'FAVOURABLE', dHighDemand.screeningResult);
+
+const dSaturated = decide(bundle({
+  population: { densityClassification: 'Dense urban', densityPerKm2: 2000 },
+  towers: { saturationClassification: 'High', densityPerKm2: 8 } }));
+check('high demand + high density -> NOT FAVOURABLE',
+  dSaturated.screeningResult !== 'FAVOURABLE', dSaturated.screeningResult);
+
+const dLowDemand = decide(bundle({
+  population: { densityClassification: 'Rural', densityPerKm2: 15 },
+  towers: { saturationClassification: 'Low', densityPerKm2: 0.2 } }));
+check('CRITICAL: low demand + low density -> NOT FAVOURABLE (capped at MIXED)',
+  dLowDemand.screeningResult === 'MIXED', dLowDemand.screeningResult);
+check('low-demand case explains WHY it is not favourable',
+  dLowDemand.limitations.some((l) => /coverage obligation|uneconomic/i.test(l)), 'explained');
+
+const dMissing = decide(bundle({
+  population: { densityClassification: 'Unknown', densityPerKm2: NaN },
+  towers: { saturationClassification: 'Unknown', densityPerKm2: NaN } }));
+check('missing primary data -> INSUFFICIENT DATA',
+  dMissing.screeningResult === 'INSUFFICIENT DATA', dMissing.screeningResult);
+check('missing-data case warns explicitly',
+  dMissing.warnings.length >= 2, `${dMissing.warnings.length}`);
+check('missing-data confidence is UNKNOWN',
+  dMissing.confidence === 'UNKNOWN', dMissing.confidence);
+
+// Every verdict must carry an evidence chain and an explicit commercial gap.
+check('decision object carries evidence rows',
+  dHighDemand.evidence.length >= 8, `${dHighDemand.evidence.length}`);
+check('decision object lists what was NOT assessed',
+  dHighDemand.notAssessed.some((n) => /COMMERCIAL FEASIBILITY/.test(n)), 'yes');
+check('decision object states what would change the result',
+  dHighDemand.whatWouldChange.length >= 5, `${dHighDemand.whatWouldChange.length}`);
+check('decision object records assumptions',
+  dHighDemand.assumptions.length >= 3, `${dHighDemand.assumptions.length}`);
+check('contribution points sum matches the raw total',
+  Math.abs(dHighDemand.contributions.reduce((a, c) => a + c.points, 0)
+    - dHighDemand.contributions.reduce((a, c) => a + c.points, 0)) < 1e-9,
+  'sum exposed');
 
 // ===========================================================================
 console.log(`\n${'='.repeat(78)}`);

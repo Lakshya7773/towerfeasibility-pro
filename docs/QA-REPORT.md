@@ -7,6 +7,11 @@
 **Target SDK:** 36 (Android 16)  
 **ABI:** arm64-v8a  
 
+> **See also:** `docs/PHASE-1-7-PROFESSIONAL-VALIDATION.md` — the professional/conceptual
+> validation and remediation pass (defects D-1…D-10, deterministic decision object,
+> provenance register, traceability matrix). Where the two documents differ on test counts,
+> the Phase 1–7 report is the later measurement.
+
 ---
 
 ## 1. Executive Summary

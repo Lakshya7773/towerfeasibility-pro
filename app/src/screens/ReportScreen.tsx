@@ -102,9 +102,10 @@ export default function ReportScreen({ navigation }: any) {
           <View style={s.preview}>
             <Text style={s.previewTitle}>Tower Feasibility Report</Text>
             <Text style={s.previewScore}>
-              Score {r.executiveSummary.overallScore}/10 · {r.executiveSummary.recommendation}
+              Technical screening score {r.executiveSummary.overallScore}/10
             </Text>
-            <Text style={s.previewMeta}>12 sections · terrain profile · disclaimers</Text>
+            <Text style={s.previewMeta}>20 sections · evidence &amp; provenance · confidence · limitations
+              · commercial feasibility NOT assessed</Text>
           </View>
 
           <TouchableOpacity style={s.btnLg} onPress={generate} disabled={busy}>

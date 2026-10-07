@@ -96,6 +96,7 @@ jobs:
           run "engines"        npx --yes tsx test_engines.ts
           run "physics"        npx --yes tsx test_physics.ts
           run "golden"         npx --yes tsx test_golden.ts
+          run "provenance"     npx --yes tsx test_provenance.ts
           run "rasters"        node test_rasters.js
           run "window cap"     node test_window_cap.js
           run "map pmtiles"    node test_map_pmtiles.js

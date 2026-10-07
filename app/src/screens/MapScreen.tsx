@@ -93,6 +93,10 @@ export default function MapScreen({ navigation }: any) {
       setSite(site);
       const report = await runAnalysis({
         site, region: activePack.region, state: activePack.state, pack: packData!,
+        appVersion: '1.0.0',
+        packVersion: activePack.version,
+        sourceDates: activePack.source_dates,
+        provenance: activePack.provenance,
       });
       setReport(report);
       navigation.navigate('Analysis');

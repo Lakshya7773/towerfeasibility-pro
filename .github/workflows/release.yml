@@ -79,49 +79,74 @@ jobs:
         run: |
           chmod +x gradlew
           export TOWERFEASIBILITY_KEYSTORE="$HOME/.keystore/release.keystore"
-          ./gradlew assembleRelease --no-daemon
+          # 2 GB heap: the APK path packs ~294 MB of data-pack entries.
+          ./gradlew assembleRelease --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx2048m -Xms256m"
+
+      - name: Build release AAB (Play Store bundle)
+        working-directory: app/android
+        env:
+          TOWERFEASIBILITY_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          TOWERFEASIBILITY_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          TOWERFEASIBILITY_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          export TOWERFEASIBILITY_KEYSTORE="$HOME/.keystore/release.keystore"
+          # bundleRelease buffers every entry of the ~294 MB pack in the bundler
+          # (AabFlinger). At -Xmx512m this OOMs in
+          # FinalizeBundleTask$BundleToolRunnable; 2 GB completes it.
+          ./gradlew bundleRelease --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx2048m -Xms256m"
 
       - name: Verify signature
         run: |
           APK=$(find app/android/app/build/outputs/apk/release -name '*.apk' | head -1)
           echo "APK=$APK"
           "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs "$APK"
+          AAB=$(find app/android/app/build/outputs/bundle/release -name '*.aab' | head -1)
+          echo "AAB=$AAB"
+          # An AAB is a JAR; verify its signature with jarsigner.
+          "$JAVA_HOME"/bin/jarsigner -verify "$AAB" | tail -3
 
-      - name: Name artifact
+      - name: Name artifacts
         run: |
           APK=$(find app/android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          AAB=$(find app/android/app/build/outputs/bundle/release -name '*.aab' | head -1)
           mkdir -p out
           cp "$APK" "out/TowerFeasibilityPro-${{ inputs.region }}-release.apk"
+          cp "$AAB" "out/TowerFeasibilityPro-${{ inputs.region }}-release.aab"
           ls -la out/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: towerfeasibility-release-apk
-          path: out/*.apk
+          name: towerfeasibility-release
+          path: |
+            out/*.apk
+            out/*.aab
           retention-days: 90
 
       - name: Report artifact metadata
         run: |
-          APK=$(find out -name '*.apk' | head -1)
-          SIZE=$(stat -c%s "$APK")
-          SIZE_MB=$((SIZE / 1024 / 1024))
-          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## ✅ Release APK built and signed
-
-          | Field | Value |
-          |-------|-------|
-          | **APK** | \`$(basename "$APK")\` |
-          | **Size** | ${SIZE_MB} MB (${SIZE} bytes) |
-          | **SHA-256** | \`${SHA}\` |
-          | **Artifact** | \`towerfeasibility-release-apk\` |
-          | **Retention** | 90 days |
-          | **Region** | ${{ inputs.region }} |
-          | **Commit** | \`${GITHUB_SHA::12}\` |
-
-          > The artifact is stored on GitHub. To download it locally, run:
-          > \`\`\`bash
-          > bash data-pipeline/scripts/pull_ci_artifact.sh release.yml towerfeasibility-release-apk dist/ci
-          > \`\`\`
-          EOF
+          {
+            echo "## ✅ Release artifacts built and signed"
+            echo ""
+            echo "| Field | APK | AAB |"
+            echo "|-------|-----|-----|"
+            APK=$(find out -name '*.apk' | head -1); AAB=$(find out -name '*.aab' | head -1)
+            ASIZE=$(stat -c%s "$APK"); BSIZE=$(stat -c%s "$AAB")
+            ASHA=$(sha256sum "$APK" | cut -d' ' -f1); BSHA=$(sha256sum "$AAB" | cut -d' ' -f1)
+            echo "| **File** | \`$(basename "$APK")\` | \`$(basename "$AAB")\` |"
+            echo "| **Size** | $((ASIZE/1024/1024)) MB | $((BSIZE/1024/1024)) MB |"
+            echo "| **SHA-256** | \`${ASHA:0:16}…\` | \`${BSHA:0:16}…\` |"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| **Artifact** | \`towerfeasibility-release\` |"
+            echo "| **Retention** | 90 days |"
+            echo "| **Region** | ${{ inputs.region }} |"
+            echo "| **Commit** | \`${GITHUB_SHA::12}\` |"
+            echo "| **Build heap** | -Xmx2048m (required for the ~294 MB pack) |"
+            echo ""
+            echo "> Artifacts are stored on GitHub. To download locally:"
+            echo "> \`bash data-pipeline/scripts/pull_ci_artifact.sh release.yml towerfeasibility-release dist/ci\`"
+          } >> "$GITHUB_STEP_SUMMARY"
           echo "Artifact metadata reported to job summary."

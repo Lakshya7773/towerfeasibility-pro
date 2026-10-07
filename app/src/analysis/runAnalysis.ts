@@ -19,13 +19,39 @@ export interface AnalyzeInput {
   state: string;
   district?: string | null;
   pack: PackData;
-  /** optional target point for LoS */
+  /** optional target point for LoS; when absent an assumed geometry is used */
   target?: { lat: number; lon: number } | null;
+  /** audit-trail metadata passed through to the report */
+  appVersion?: string;
+  packVersion?: string;
+  sourceDates?: Record<string, string>;
+  provenance?: Record<string, any>;
 }
 
-/** A target for LoS when the user has not picked one: ~5 km on a bearing. */
+/**
+ * Fallback LoS target when the caller supplies none.
+ *
+ * IMPORTANT: this is an ASSUMED geometry, not the site's real line of sight.
+ * It produces a ~4.5 km path on a ~42° (NE) bearing. The report must disclose
+ * that the target was assumed; `losTargetAssumed` is set accordingly and the
+ * UI/report must not present the resulting distance as site-specific fact.
+ */
 function defaultTarget(lat: number, lon: number) {
   return { lat: lat + 0.03, lon: lon + 0.03 };
+}
+
+/** Compass bearing (deg) and distance (km) between two points, for disclosure. */
+function pathGeometry(from: { lat: number; lon: number }, to: { lat: number; lon: number }) {
+  const dLat = to.lat - from.lat;
+  const dLon = to.lon - from.lon;
+  const midLat = (from.lat + to.lat) / 2;
+  const kx = 111.32 * Math.cos((midLat * Math.PI) / 180);
+  const dy = dLat * 111.32;
+  const dx = dLon * kx;
+  const distanceKm = Math.hypot(dx, dy);
+  let bearing = (Math.atan2(dx, dy) * 180) / Math.PI;
+  if (bearing < 0) bearing += 360;
+  return { distanceKm, bearing };
 }
 
 export async function runAnalysis(input: AnalyzeInput): Promise<FeasibilityReport> {
@@ -67,7 +93,9 @@ export async function runAnalysis(input: AnalyzeInput): Promise<FeasibilityRepor
   const admin = buildAdminResult(input.state, input.district ?? null);
 
   // 7 LoS — needs the elevation raster; decode only the path corridor
+  const losTargetAssumed = !input.target;
   const target = input.target ?? defaultTarget(lat, lon);
+  const pathGeo = pathGeometry({ lat, lon }, target);
   let los = null;
   if (pack.elevationPath) {
     const sampler = await loadWindowSampler(
@@ -86,5 +114,20 @@ export async function runAnalysis(input: AnalyzeInput): Promise<FeasibilityRepor
     population, towers, resources, row, los, soil, admin,
   };
 
-  return buildReport(site, input.region, bundle);
+  // Attach the assumed-target disclosure to the LoS result so the report can
+  // state the geometry it actually used rather than implying a real link.
+  if (los) {
+    (los as any).targetAssumed = losTargetAssumed;
+    (los as any).bearingDeg = Math.round(pathGeo.bearing);
+    (los as any).target = { lat: target.lat, lon: target.lon };
+  }
+
+  return buildReport(site, input.region, bundle, {
+    appVersion: input.appVersion,
+    algorithmVersion: '1.1.0',
+    packVersion: input.packVersion,
+    sourceDates: input.sourceDates,
+    provenance: input.provenance,
+    losTargetAssumed,
+  });
 }

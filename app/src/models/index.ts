@@ -83,6 +83,12 @@ export interface LosResult {
   pathLossDb: number;
   estimatedRsrpDbm: number;
   distanceKm: number;
+  /** True when the path used an assumed target rather than a user-chosen one. */
+  targetAssumed?: boolean;
+  /** Bearing of the analysed path, degrees from north. */
+  bearingDeg?: number;
+  /** The target coordinate actually used. */
+  target?: { lat: number; lon: number };
 }
 
 export interface SoilResult {
@@ -99,6 +105,17 @@ export interface AdminResult {
   complianceRequirements: string[];
 }
 
+/** One scoring dimension's exact contribution to the technical score. */
+export interface ScoreContribution {
+  key: 'population' | 'saturation' | 'resources' | 'soil' | 'los';
+  label: string;
+  points: number;
+  maxPoints: number;
+  knowledge: 'FACT' | 'COMPUTED' | 'ASSUMPTION';
+  reason: string;
+  missingData: boolean;
+}
+
 export interface FeasibilityReport {
   metadata: {
     projectName: string;
@@ -107,12 +124,31 @@ export interface FeasibilityReport {
     preparedBy: string;
     coordinates: { lat: number; lon: number };
     region: string;
+    /** App + algorithm version for the audit trail. */
+    appVersion?: string;
+    algorithmVersion?: string;
+    /** Data-pack version and per-dataset vintages (provenance). */
+    packVersion?: string;
+    sourceDates?: Record<string, string>;
+    provenance?: Record<string, {
+      source: string; provider?: string; type: string; vintage: string;
+      resolution?: string; coverage?: string; status?: string; limitation?: string;
+    }>;
+    /** True when the LoS path used an assumed target, not a user-chosen one. */
+    losTargetAssumed?: boolean;
   };
   executiveSummary: {
     overallScore: number; // 1-10
     recommendation: Recommendation;
     keyFindings: string[];
     criticalIssues: string[];
+    /** Exact per-dimension points; omitted only for legacy reports. */
+    contributions?: ScoreContribution[];
+    /** Deterministic robustness check (see ReportBuilder.analyseSensitivity). */
+    sensitivity?: {
+      robust: boolean; verdictFlips: boolean;
+      base: string; low: string; high: string; note: string;
+    };
   };
   populationAnalysis: PopulationResult;
   towerAnalysis: TowerResult;

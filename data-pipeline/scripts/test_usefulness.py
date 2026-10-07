@@ -89,7 +89,9 @@ if os.path.exists(report_tpl_path):
         ('LoS/Terrain', 'los' if 'los' in tpl_src.lower() else 'terrain'),
         ('Soil', 'soil'),
         ('Admin', 'admin'),
-        ('Recommendation', 'recommendation'),
+        # The report no longer uses the word "recommendation" for the verdict:
+        # it presents a TECHNICAL SCREENING RESULT. Assert that vocabulary.
+        ('Screening result', 'screening'),
     ]
 
     for name, keyword in dimensions:
@@ -108,7 +110,9 @@ else:
         ('LoS/Terrain', 'los'),
         ('Soil', 'soil'),
         ('Admin', 'admin'),
-        ('Recommendation', 'recommendation'),
+        # The report no longer uses the word "recommendation" for the verdict:
+        # it presents a TECHNICAL SCREENING RESULT. Assert that vocabulary.
+        ('Screening result', 'screening'),
     ]
 
     for name, keyword in dimensions:
@@ -134,9 +138,11 @@ check('Report includes feasibility score',
       'score/rating')
 
 # Check report has recommendations
-check('Report includes recommendations',
-      'recommendation' in tpl_src.lower() or 'go' in tpl_src.lower() or 'no-go' in tpl_src.lower(),
-      'Go/No-Go')
+# The product deliberately moved from an investment-style "Go/No-Go" label to
+# technical screening semantics, and must state the commercial gap explicitly.
+check('Report includes a screening result (not an investment verdict)',
+      'screening result' in tpl_src.lower() and 'commercial feasibility' in tpl_src.lower(),
+      'screening result + commercial status')
 
 # Check report has risk factors
 check('Report includes risk factors',
@@ -177,10 +183,11 @@ check('Overall feasibility scoring exists',
       'score' in tpl_src.lower() or 'overall' in tpl_src.lower(),
       'overall score')
 
-# Check Go/No-Go logic
-check('Go/No-Go recommendation logic',
-      'go' in tpl_src.lower() and ('no' in tpl_src.lower() or 'conditional' in tpl_src.lower()),
-      'Go/No-Go/Conditional')
+# The four screening verdicts must all be expressible.
+check('Screening verdict logic (FAVOURABLE / MIXED / UNFAVOURABLE / INSUFFICIENT DATA)',
+      'favourable' in tpl_src.lower() and 'mixed' in tpl_src.lower()
+      and 'unfavourable' in tpl_src.lower() and 'insufficient data' in tpl_src.lower(),
+      'four screening verdicts')
 
 # ============================================================
 # T-U04: UI/UX Quality

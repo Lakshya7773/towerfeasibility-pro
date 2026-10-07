@@ -28,6 +28,8 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 
+import provenance
+
 REGIONS = {
     "rajasthan": {"name": "Rajasthan", "state": "Rajasthan",
                   "min_lat": 23.0, "max_lat": 30.3, "min_lon": 69.4, "max_lon": 78.3},
@@ -314,9 +316,10 @@ def main():
         print(f"  elevation: MISSING ({elev_src})")
 
     # manifest
-    # source_dates records the vintage of each upstream dataset so the app can
-    # tell the user how old the data is. These are fixed release dates of the
-    # upstream products, not the build time.
+    # Dataset vintages and provenance come from provenance.py — a single
+    # authoritative registry. They are UPSTREAM publication dates, never build
+    # timestamps: conflating the two previously made the manifest claim the
+    # tower registry was 2024-vintage when the source is 2022.
     manifest = {
         "region": args.region,
         "region_name": b["name"],
@@ -324,14 +327,8 @@ def main():
         "version": "1.0.0",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "bounds": {k: b[k] for k in ("min_lat", "max_lat", "min_lon", "max_lon")},
-        "source_dates": {
-            "towers": "2024-06-01",
-            "fiber": "2024-06-01",
-            "soil": "2007-01-01",
-            "population": "2020-01-01",
-            "elevation": "2000-02-11",
-            "basemap": "2026-10-01",
-        },
+        "source_dates": provenance.vintage_map(),
+        "provenance": provenance.provenance_block(),
         "files": [{"path": os.path.relpath(p, pack),
                    "size": os.path.getsize(p),
                    "sha256": sha256(p),
