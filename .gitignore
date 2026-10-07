@@ -67,10 +67,15 @@ data/raw/
 data/fiber/
 data/towers/
 data/basemap/
-data/elevation/
 data/population/
 data/soil/
 data/admin/
+# elevation: keep the small processing-metadata JSON (test_trustworthiness.py
+# reads it); the 79 MB GeoTIFF and raw tiles stay ignored.
+data/elevation/*
+!data/elevation/processed/
+data/elevation/processed/*
+!data/elevation/processed/*.json
 
 # ---- Local QA scratch / logs ----
 qa/

@@ -51,6 +51,15 @@ jobs:
           cp -r app/assets/packs dist/packs
           ls -la dist/packs/data-pack-rajasthan
 
+      - name: Map hardcoded local paths onto the runner
+        # Several pipeline scripts hardcode /home/lakshya/company/towerfeasibility
+        # as the project root. Symlinking it to the checkout lets them run
+        # unmodified instead of rewriting every test.
+        run: |
+          sudo mkdir -p /home/lakshya/company
+          sudo ln -sfn "$GITHUB_WORKSPACE" /home/lakshya/company/towerfeasibility
+          ls -la /home/lakshya/company/
+
       - name: Run Python suites
         run: |
           set -o pipefail

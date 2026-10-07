@@ -1,0 +1,13 @@
+{
+  "source": "AWS Terrain Tiles (terrarium, SRTM-derived) z11",
+  "units": "metres",
+  "nodata": -32768,
+  "region": "rajasthan",
+  "zoom": 11,
+  "bounds": {
+    "min_lat": 23.0,
+    "max_lat": 30.3,
+    "min_lon": 69.4,
+    "max_lon": 78.3
+  }
+}
