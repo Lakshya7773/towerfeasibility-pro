@@ -1,0 +1,94 @@
+name: Release APK
+
+# Manual only — a production-signed APK is a release artifact, not something
+# every push should produce. Requires repository secrets:
+#   KEYSTORE_BASE64    base64 of the release keystore (.keystore/.jks)
+#   KEYSTORE_PASSWORD  keystore password
+#   KEY_ALIAS          key alias
+#   KEY_PASSWORD       key password
+# Create them with:  base64 -w0 ~/.keystore/towerfeasibility-release.keystore | gh secret set KEYSTORE_BASE64
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Data pack region baked into the app'
+        required: true
+        default: 'rajasthan'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK / NDK packages
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.1.12297006" \
+            "platform-tools"
+
+      - name: Install JS dependencies
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not set"; exit 1
+          fi
+          mkdir -p "$HOME/.keystore"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$HOME/.keystore/release.keystore"
+          ls -la "$HOME/.keystore/release.keystore"
+
+      - name: Build release APK
+        working-directory: app/android
+        env:
+          TOWERFEASIBILITY_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          TOWERFEASIBILITY_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          TOWERFEASIBILITY_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          export TOWERFEASIBILITY_KEYSTORE="$HOME/.keystore/release.keystore"
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Verify signature
+        run: |
+          APK=$(find app/android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          echo "APK=$APK"
+          "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs "$APK"
+
+      - name: Name artifact
+        run: |
+          APK=$(find app/android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          mkdir -p out
+          cp "$APK" "out/TowerFeasibilityPro-${{ inputs.region }}-release.apk"
+          ls -la out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: towerfeasibility-release-apk
+          path: out/*.apk
+          retention-days: 90

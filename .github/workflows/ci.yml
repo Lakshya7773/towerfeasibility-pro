@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Data pipeline + analysis engines.
+  # The test scripts read the data pack from dist/packs/, which is a build
+  # output (not tracked). We materialise it from the tracked copy in
+  # app/assets/packs/ first, so the suites exercise the shipped pack.
+  # ---------------------------------------------------------------------
+  test:
+    name: Test suites (pipeline + engines)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install JS dependencies
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # fiona is not imported directly but geopandas/pyogrio need it present
+          pip install numpy rasterio geopandas shapely pyproj fiona pillow requests
+
+      - name: Materialise data pack for the suites
+        run: |
+          mkdir -p dist
+          cp -r app/assets/packs dist/packs
+          ls -la dist/packs/data-pack-rajasthan
+
+      - name: Run Python suites
+        run: |
+          set -o pipefail
+          cd data-pipeline/scripts
+          fail=0
+          run() { echo "::group::$1"; shift; "$@" || { echo "::error::$1 FAILED"; fail=1; }; echo "::endgroup::"; }
+
+          run "accuracy"        python test_accuracy.py
+          run "trustworthiness" python test_trustworthiness.py
+          run "data integrity"  python qa_data_integrity.py
+
+          # Known non-blocking: the "map snippet" capture needs a headed
+          # renderer and fails headless. Tracked in docs/FINAL-QA-REPORT.md.
+          echo "::group::usefulness (non-blocking)"; python test_usefulness.py || echo "usefulness: known non-blocking failure (headless map capture)"; echo "::endgroup::"
+
+          exit $fail
+
+      - name: Run Node / TypeScript suites
+        run: |
+          set -o pipefail
+          cd data-pipeline/scripts
+          fail=0
+          run() { echo "::group::$1"; shift; "$@" || { echo "::error::$1 FAILED"; fail=1; }; echo "::endgroup::"; }
+
+          run "qa core"        npx --yes tsx qa_suite_core.ts
+          run "qa regression"  npx --yes tsx qa_regression.ts
+          run "qa adversarial" npx --yes tsx qa_adversarial.ts
+          run "engines"        npx --yes tsx test_engines.ts
+          run "physics"        npx --yes tsx test_physics.ts
+          run "rasters"        node test_rasters.js
+          run "window cap"     node test_window_cap.js
+          run "map pmtiles"    node test_map_pmtiles.js
+
+          exit $fail
+
+  # ---------------------------------------------------------------------
+  # Android build. Runs on GitHub's runners so no local machine is needed.
+  # Debug-signed APK (uses the tracked public debug keystore) — installable
+  # on any device. For a production-signed artifact see release.yml.
+  # ---------------------------------------------------------------------
+  build-debug:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK / NDK packages
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.1.12297006" \
+            "platform-tools"
+
+      - name: Install JS dependencies
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+
+      - name: Build debug APK
+        working-directory: app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Show APK
+        run: |
+          find app/android/app/build/outputs/apk -name '*.apk' -exec ls -la {} \;
+          APK=$(find app/android/app/build/outputs/apk/debug -name '*.apk' | head -1)
+          echo "APK=$APK" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: towerfeasibility-debug-apk
+          path: app/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
