@@ -22,6 +22,10 @@ Thumbs.db
 !.env.example
 local.properties
 google-services.json
+# Exception: the standard Android DEBUG keystore is public (password "android")
+# and is required for an out-of-the-box `./gradlew assembleDebug`. The RELEASE
+# keystore stays excluded above.
+!app/android/app/debug.keystore
 
 # ---- Python (data pipeline) ----
 .venv/
