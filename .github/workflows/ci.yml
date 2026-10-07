@@ -119,15 +119,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Install SDK / NDK packages
+      - name: Set up Android SDK / NDK
+        # android-actions/setup-android@v3 fails on current runners: it tries to
+        # install the retired "tools" package. The runner already ships the
+        # Android SDK, so use it directly and add only what this build needs.
         run: |
-          sdkmanager --install \
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "SDK_ROOT=$SDK_ROOT"
+          SDKMGR="$(ls "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          [ -n "$SDKMGR" ] || { echo "::error::sdkmanager not found under $SDK_ROOT"; exit 1; }
+          echo "sdkmanager=$SDKMGR"
+          yes | "$SDKMGR" --licenses >/dev/null 2>&1 || true
+          "$SDKMGR" --install \
             "platforms;android-36" \
             "build-tools;36.0.0" \
             "ndk;27.1.12297006" \
             "platform-tools"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
       - name: Install JS dependencies
         working-directory: app
