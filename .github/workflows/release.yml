@@ -99,3 +99,29 @@ jobs:
           name: towerfeasibility-release-apk
           path: out/*.apk
           retention-days: 90
+
+      - name: Report artifact metadata
+        run: |
+          APK=$(find out -name '*.apk' | head -1)
+          SIZE=$(stat -c%s "$APK")
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## ✅ Release APK built and signed
+
+          | Field | Value |
+          |-------|-------|
+          | **APK** | \`$(basename "$APK")\` |
+          | **Size** | ${SIZE_MB} MB (${SIZE} bytes) |
+          | **SHA-256** | \`${SHA}\` |
+          | **Artifact** | \`towerfeasibility-release-apk\` |
+          | **Retention** | 90 days |
+          | **Region** | ${{ inputs.region }} |
+          | **Commit** | \`${GITHUB_SHA::12}\` |
+
+          > The artifact is stored on GitHub. To download it locally, run:
+          > \`\`\`bash
+          > bash data-pipeline/scripts/pull_ci_artifact.sh release.yml towerfeasibility-release-apk dist/ci
+          > \`\`\`
+          EOF
+          echo "Artifact metadata reported to job summary."
