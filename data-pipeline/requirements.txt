@@ -1,0 +1,12 @@
+# Data pipeline — test & verification dependencies.
+# Used by CI (see .github/workflows/ci.yml) and by a local venv.
+#
+# fiona is not imported directly; geopandas/pyogrio need it present.
+numpy>=2.0
+rasterio>=1.4
+geopandas>=1.0
+shapely>=2.0
+pyproj>=3.6
+fiona>=1.9
+pillow>=10
+requests>=2.31
