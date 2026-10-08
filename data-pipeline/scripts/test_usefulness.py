@@ -277,7 +277,16 @@ print('\n' + '=' * 60)
 print('T-T01: Technical — APK Integrity')
 print('=' * 60)
 
-apk_path = os.path.join(DIST, 'TowerFeasibilityPro-rajasthan-release.apk')
+# CI builds the debug APK (ci.yml); the release build is a separate manual
+# workflow (release.yml). Accept either so this suite runs in both contexts.
+release_apk = os.path.join(DIST, 'TowerFeasibilityPro-rajasthan-release.apk')
+debug_apk = os.path.join(APP, 'android/app/build/outputs/apk/debug/app-debug.apk')
+if os.path.exists(release_apk):
+    apk_path = release_apk
+elif os.path.exists(debug_apk):
+    apk_path = debug_apk
+else:
+    apk_path = release_apk  # keep the expected name for the failure message
 check('Release APK exists', os.path.exists(apk_path), apk_path)
 
 if os.path.exists(apk_path):
