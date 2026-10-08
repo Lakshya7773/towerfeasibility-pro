@@ -137,6 +137,44 @@ is 5 devices × 2 test types = **10 tests** — an entire day's quota in one
 workflow. The primary-device gate plus `run_full_matrix=false` is the cheap way
 to check a release without exhausting quota.
 
+## Signing credentials are required, with no fallbacks
+
+`app/android/app/build.gradle` reads the release signing identity **only** from
+the environment:
+
+```
+TOWERFEASIBILITY_KEYSTORE           path to the release keystore
+TOWERFEASIBILITY_KEYSTORE_PASSWORD  keystore password
+TOWERFEASIBILITY_KEY_ALIAS          key alias
+TOWERFEASIBILITY_KEY_PASSWORD       key password
+```
+
+There are deliberately **no default values**. A task-graph guard fails the build
+with an actionable message when any variable is missing and a release
+assemble/bundle/package/sign task is in the graph:
+
+```
+Release signing credentials are not configured.
+Missing environment variable(s): TOWERFEASIBILITY_KEYSTORE, ...
+```
+
+The guard is scoped narrowly: it fires only for release signing tasks, so
+`assembleDebug`, `clean`, `tasks` and `--dry-run` are unaffected, and a fresh
+clone can still build a debug APK with no configuration.
+
+The **debug** keystore keeps its `android` / `androiddebugkey` values on purpose:
+that is Google's standard public debug keystore (committed at
+`app/android/app/debug.keystore`), whose credentials are published constants, not
+secrets.
+
+### Security note — credential in git history
+
+A release keystore password was previously hardcoded in `app/android/app/build.gradle`.
+It has been removed from the working tree, but **it remains in the git history**.
+Removing it from history would require a rewrite; more practically, **rotate the
+keystore password** if this repository is ever shared. Removing a secret from the
+current tree does not remove it from history.
+
 ## Current status
 
 The path is implemented but **has never run**, because `KEYSTORE_BASE64` and the

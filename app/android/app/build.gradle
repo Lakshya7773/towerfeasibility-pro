@@ -102,17 +102,29 @@ android {
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
     signingConfigs {
+        // The DEBUG keystore is the standard, PUBLIC Android debug keystore
+        // (committed at app/android/app/debug.keystore). Its password and alias
+        // are well-known constants published by Google — not credentials — and
+        // a fresh clone must build with no configuration at all.
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The RELEASE keystore is a real signing identity. Its location and
+        // credentials come ONLY from the environment. There are deliberately no
+        // fallbacks: a release build with missing credentials must fail loudly
+        // (see the task-graph guard below) rather than sign with a guessed or
+        // publicly-known password.
         release {
-            storeFile file(System.getenv("TOWERFEASIBILITY_KEYSTORE") ?: "${rootDir}/../towerfeasibility-release.keystore")
-            storePassword System.getenv("TOWERFEASIBILITY_KEYSTORE_PASSWORD") ?: "towerfeasibility2026"
-            keyAlias System.getenv("TOWERFEASIBILITY_KEY_ALIAS") ?: "towerfeasibility"
-            keyPassword System.getenv("TOWERFEASIBILITY_KEY_PASSWORD") ?: "towerfeasibility2026"
+            def keystorePath = System.getenv("TOWERFEASIBILITY_KEYSTORE")
+            if (keystorePath) {
+                storeFile file(keystorePath)
+            }
+            storePassword System.getenv("TOWERFEASIBILITY_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("TOWERFEASIBILITY_KEY_ALIAS")
+            keyPassword System.getenv("TOWERFEASIBILITY_KEY_PASSWORD")
         }
     }
     buildTypes {
@@ -148,6 +160,68 @@ android {
     testBuildType "release"
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Release signing guard.
+//
+// Any task that produces or signs the RELEASE artifact requires all four
+// signing environment variables. If any is missing we fail here, with an
+// actionable message, instead of letting the build sign with a guessed
+// password or fail deep inside the packager with an opaque error.
+//
+// Scope is deliberately narrow: the check only fires when a release
+// assemble/bundle/package/sign task is actually in the task graph, so debug
+// builds, `clean`, `tasks` and `--dry-run` are unaffected.
+// ---------------------------------------------------------------------------
+def releaseSigningEnvVars = [
+    "TOWERFEASIBILITY_KEYSTORE",
+    "TOWERFEASIBILITY_KEYSTORE_PASSWORD",
+    "TOWERFEASIBILITY_KEY_ALIAS",
+    "TOWERFEASIBILITY_KEY_PASSWORD",
+]
+
+gradle.taskGraph.whenReady { graph ->
+    def releaseSigningTasks = graph.allTasks.findAll { t ->
+        def n = t.name.toLowerCase()
+        n.contains("release") && (
+            n.startsWith("assemble") || n.startsWith("bundle") ||
+            n.startsWith("package") || n.contains("sign")
+        )
+    }
+    if (!releaseSigningTasks) return
+
+    def missing = releaseSigningEnvVars.findAll { !System.getenv(it) }
+    if (!missing.isEmpty()) {
+        throw new GradleException("""
+Release signing credentials are not configured.
+
+Missing environment variable(s): ${missing.join(', ')}
+
+A release artifact cannot be built without them. There are deliberately no
+defaults: signing with a guessed or publicly-known password would produce an
+APK that looks valid but cannot be attributed to the real signing identity.
+
+Set all four, then rebuild:
+
+  export TOWERFEASIBILITY_KEYSTORE=/path/to/release.keystore
+  export TOWERFEASIBILITY_KEYSTORE_PASSWORD='...'
+  export TOWERFEASIBILITY_KEY_ALIAS='...'
+  export TOWERFEASIBILITY_KEY_PASSWORD='...'
+
+In CI these are supplied from repository secrets — see
+.github/workflows/release.yml and .github/workflows/release-validation.yml.
+
+Tasks requiring them: ${releaseSigningTasks.collect { it.path }.sort().join(', ')}
+""".stripIndent())
+    }
+
+    def keystorePath = System.getenv("TOWERFEASIBILITY_KEYSTORE")
+    if (!file(keystorePath).exists()) {
+        throw new GradleException(
+            "TOWERFEASIBILITY_KEYSTORE points at '${keystorePath}' but no such file exists."
+        )
     }
 }
 
