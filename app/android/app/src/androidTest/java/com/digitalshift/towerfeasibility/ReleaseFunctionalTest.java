@@ -128,9 +128,19 @@ public class ReleaseFunctionalTest {
     /**
      * FT-002 — Location selection screen.
      * Requires an active pack, so this also proves the bundled pack installed.
+     * Waits for the pack to finish installing (button becomes enabled).
      */
     @Test
     public void test02_openSiteScreen() throws Exception {
+        // Wait for the pack to install — the "Start site analysis" button is
+        // disabled until an active pack is present. Wait for the status card
+        // to show "Active pack:" which only appears after installation.
+        boolean packInstalled = device.wait(
+                Until.hasObject(By.textContains("Active pack:")),
+                BOOT_TIMEOUT_MS);
+        assertTrue("data pack did not install (no 'Active pack:' status)", packInstalled);
+
+        // Now the button should be enabled and tappable.
         assertTrue("could not tap 'Start site analysis'",
                 clickText("Start site analysis", UI_TIMEOUT_MS));
 
