@@ -195,11 +195,26 @@ jobs:
           echo "Artifact metadata reported to job summary."
 
   # ---------------------------------------------------------------------
-  # Firebase Test Lab — manual only (workflow_dispatch with run_test_lab=true)
+  # Firebase Test Lab — DEBUG build (fast feedback path).
+  #
+  # This validates the debug APK, which needs no signing secrets and so can
+  # run on any push. It is NOT evidence about the shipped artifact: the
+  # release build is non-debuggable, production-signed and has no cleartext
+  # traffic or dev-support hooks.
+  # For the release artifact see .github/workflows/release-validation.yml,
+  # which runs Robo + targeted tests + the 5-device matrix against the SIGNED
+  # RELEASE APK.
+  #
+  # Runs when: manually dispatched with run_test_lab=true (default on a manual
+  # run), or on a pull request. Pushes to main skip it to conserve Test Lab
+  # quota; the release path is the one that matters for the artifact.
   # ---------------------------------------------------------------------
   test-lab:
-    name: Firebase Test Lab
+    name: Firebase Test Lab (debug APK)
     needs: build-debug
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_test_lab)
     uses: ./.github/workflows/firebase-test-lab.yml
     with:
       artifact_name: towerfeasibility-debug-apk

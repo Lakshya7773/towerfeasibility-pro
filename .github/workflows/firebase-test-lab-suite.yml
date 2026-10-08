@@ -1,0 +1,191 @@
+name: Firebase Test Lab Suite
+
+# Reusable Test Lab runner used by the release-validation path.
+#
+# It can run either or both of:
+#   * a Robo crawl          (exploratory — detects crashes/ANRs)
+#   * targeted instrumentation tests (deterministic UI assertions)
+#
+# on one device or a whole device matrix, against whatever APK artifact the
+# caller passes in. The caller decides whether that artifact is the debug build
+# or the signed RELEASE build.
+#
+# Robo PASS is explicitly NOT treated as equivalent to targeted functional
+# validation: they are separate steps with separate results, and the caller
+# gates on both.
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Name of the app APK artifact to test'
+        required: true
+        type: string
+      test_apk_artifact:
+        description: 'Name of the instrumentation (androidTest) APK artifact; required for run_targeted'
+        required: false
+        type: string
+        default: ''
+      run_robo:
+        description: 'Run a Robo crawl'
+        required: false
+        type: boolean
+        default: true
+      run_targeted:
+        description: 'Run targeted instrumentation tests'
+        required: false
+        type: boolean
+        default: false
+      robo_timeout:
+        description: 'Robo timeout (e.g. 10m, 15m)'
+        required: false
+        type: string
+        default: '15m'
+      test_timeout:
+        description: 'Instrumentation timeout (e.g. 30m)'
+        required: false
+        type: string
+        default: '30m'
+      devices:
+        description: |
+          JSON array of Test Lab devices, e.g.
+          '[{"model":"SmallPhone.arm","version":"35","locale":"en","orientation":"portrait"}]'
+        required: true
+        type: string
+      label:
+        description: 'Short label used to name the results artifact'
+        required: false
+        type: string
+        default: 'testlab'
+    secrets:
+      GCP_SA_KEY:
+        description: 'GCP service account JSON key'
+        required: true
+      FIREBASE_PROJECT_ID:
+        description: 'Firebase project ID'
+        required: true
+
+jobs:
+  test:
+    name: ${{ inputs.label }} · ${{ matrix.device.model }} API ${{ matrix.device.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      # One device failing must not cancel the others: the matrix result is
+      # more useful when we see every device's outcome.
+      fail-fast: false
+      matrix:
+        device: ${{ fromJSON(inputs.devices) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download app APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/app
+
+      - name: Download test APK
+        if: ${{ inputs.run_targeted }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.test_apk_artifact }}
+          path: dist/test
+
+      - name: Verify APKs exist
+        run: |
+          APP=$(find dist/app -name '*.apk' | head -1)
+          if [ -z "$APP" ]; then echo "::error::no app APK in dist/app"; exit 1; fi
+          echo "APP=$APP" >> "$GITHUB_ENV"
+          echo "app APK: $APP ($(stat -c%s "$APP") bytes)"
+          if [ "${{ inputs.run_targeted }}" = "true" ]; then
+            TEST=$(find dist/test -name '*.apk' | head -1)
+            if [ -z "$TEST" ]; then echo "::error::no test APK in dist/test"; exit 1; fi
+            echo "TEST=$TEST" >> "$GITHUB_ENV"
+            echo "test APK: $TEST ($(stat -c%s "$TEST") bytes)"
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+      - name: Robo crawl
+        if: ${{ inputs.run_robo }}
+        id: robo
+        run: |
+          set +e
+          gcloud firebase test android run \
+            --type robo \
+            --app "$APP" \
+            --device model=${{ matrix.device.model }},version=${{ matrix.device.version }},locale=${{ matrix.device.locale }},orientation=${{ matrix.device.orientation }} \
+            --timeout ${{ inputs.robo_timeout }} \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --results-dir="robo-${{ github.run_id }}-${{ matrix.device.model }}-${{ matrix.device.version }}" \
+            --format="json" > "robo-${{ matrix.device.model }}-${{ matrix.device.version }}.json" 2>&1
+          CODE=$?
+          set -e
+          echo "exit_code=$CODE" >> "$GITHUB_OUTPUT"
+          [ $CODE -eq 0 ] && echo "status=PASS" >> "$GITHUB_OUTPUT" || echo "status=FAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Targeted functional tests
+        if: ${{ inputs.run_targeted }}
+        id: targeted
+        run: |
+          set +e
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app "$APP" \
+            --test "$TEST" \
+            --device model=${{ matrix.device.model }},version=${{ matrix.device.version }},locale=${{ matrix.device.locale }},orientation=${{ matrix.device.orientation }} \
+            --timeout ${{ inputs.test_timeout }} \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --results-dir="targeted-${{ github.run_id }}-${{ matrix.device.model }}-${{ matrix.device.version }}" \
+            --format="json" > "targeted-${{ matrix.device.model }}-${{ matrix.device.version }}.json" 2>&1
+          CODE=$?
+          set -e
+          echo "exit_code=$CODE" >> "$GITHUB_OUTPUT"
+          [ $CODE -eq 0 ] && echo "status=PASS" >> "$GITHUB_OUTPUT" || echo "status=FAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testlab-${{ inputs.label }}-${{ matrix.device.model }}-${{ matrix.device.version }}-${{ github.run_id }}
+          path: |
+            robo-*.json
+            targeted-*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Report device result
+        if: always()
+        run: |
+          {
+            echo "### ${{ inputs.label }} — ${{ matrix.device.model }} (API ${{ matrix.device.version }})"
+            echo ""
+            echo "| Test type | Status | Exit code |"
+            echo "|-----------|--------|-----------|"
+            if [ "${{ inputs.run_robo }}" = "true" ]; then
+              echo "| Robo crawl | ${{ steps.robo.outputs.status || 'N/A' }} | ${{ steps.robo.outputs.exit_code || 'N/A' }} |"
+            fi
+            if [ "${{ inputs.run_targeted }}" = "true" ]; then
+              echo "| Targeted functional | ${{ steps.targeted.outputs.status || 'N/A' }} | ${{ steps.targeted.outputs.exit_code || 'N/A' }} |"
+            fi
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail this device if any test type failed
+        if: |
+          always() && (
+            (inputs.run_robo && steps.robo.outputs.status == 'FAIL') ||
+            (inputs.run_targeted && steps.targeted.outputs.status == 'FAIL')
+          )
+        run: |
+          echo "::error::Test Lab failed on ${{ matrix.device.model }} API ${{ matrix.device.version }}"
+          exit 1

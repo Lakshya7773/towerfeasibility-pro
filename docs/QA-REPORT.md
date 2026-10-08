@@ -37,7 +37,7 @@ Per the mission's final rule, production readiness requires functional tests + e
 - Engineering validation and regression are **genuinely executed and green**.
 - Functional tests exist as an executable specification (Robo directives) but have **not been run as targeted tests** — the passing Robo run was a smoke crawl, which is weaker evidence.
 - The device matrix is **defined but not executed**; only one device has ever run the app.
-- The release APK has been **statically validated** (signature, ABI, permissions, bundled assets) but **has never been launched on a device**.
+- The release APK has been **statically validated** (signature, ABI, permissions, bundled assets) but **has never been launched on a device**. A release-validation path now exists (`docs/RELEASE-VALIDATION.md`) — Robo + targeted functional tests + the 5-device matrix against the signed release APK — but it needs the signing secrets before it can run.
 
 The two domain-validation items (RSRP thresholds, commercial model) require telecom/business expert input and are not defects.
 

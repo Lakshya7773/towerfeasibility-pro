@@ -150,17 +150,61 @@ Every PDF carries these disclaimers.
 
 ---
 
+## Validation — two independent paths
+
+These validate **different artifacts**; do not confuse them.
+
+| | Debug path | Release path |
+|---|---|---|
+| Workflow | `ci.yml` → `firebase-test-lab.yml` | `release-validation.yml` → `firebase-test-lab-suite.yml` |
+| Artifact | `towerfeasibility-debug-apk` | `towerfeasibility-release-apk` (signed) |
+| Tests | Robo crawl | Robo **+ targeted functional tests** |
+| Devices | SmallPhone.arm API 35 | primary device **+ 5-device matrix** |
+| Triggers | pull requests / manual | manual only |
+
+The debug APK is signed with a public keystore so it needs no secrets; the
+release APK is **non-debuggable**, production-signed and has no cleartext
+traffic or dev-support hooks — a materially different binary. An app that only
+fails when it is not debuggable passes a debug test and fails in production.
+**A Robo pass on debug is not evidence that the release build runs**, which is
+why the release path exists.
+
+See **`docs/RELEASE-VALIDATION.md`** for the full path, the targeted test list,
+required secrets and the Test Lab quota warning.
+
+### Test suites
+
+```bash
+cd data-pipeline/scripts
+npx tsx qa_suite_core.ts      # 193 checks — geometry, scoring, adversarial verdicts
+npx tsx test_golden.ts        # 83 golden engineering tests (2 blocked = domain authority)
+npx tsx test_provenance.ts    # 43 checks — dataset vintages / no fabricated authority
+npx tsx qa_regression.ts      # 37   npx tsx qa_adversarial.ts  # 71
+npx tsx test_engines.ts       # 40   npx tsx test_physics.ts    # 19
+python test_accuracy.py       # 28   python test_trustworthiness.py  # 34
+```
+
+---
+
 ## Status
 
 | Area | State |
 |---|---|
 | Data acquisition (towers, fiber, soil) | ✅ done, full India |
-| Build-time processors | ✅ working |
-| Data pack builder | ✅ Rajasthan pack built & verified |
-| Analysis engines | ✅ 39/39 tests passing |
-| PDF report | ✅ verified 3-page PDF, all 12 sections |
+| Build-time processors + pack builder | ✅ Rajasthan pack built & verified |
+| Analysis engines | ✅ ~700 checks passing across 14 suites |
+| PDF report | ✅ 20-section evidence-first report (provenance, confidence, limitations) |
 | App UI + navigation | ✅ implemented, typechecks clean |
-| Android build | 🚧 in progress (low-memory host) |
-| Map (MapLibre + PMTiles) | ⬜ not started |
-| Elevation packs (LoS) | ⬜ not started |
+| Deterministic decision object ("why engine") | ✅ contributions, confidence, sensitivity, NOT-ASSESSED |
+| Map (MapLibre + PMTiles, offline) | ✅ working (ranged PMTiles reads) |
+| Elevation packs (LoS) | ✅ SRTM z11, terrain profile + Fresnel |
+| Release APK (signed, arm64-v8a, no INTERNET) | ✅ built & statically verified |
+| Release runtime validation | ⬜ path implemented, needs signing secrets (B-1) |
 | iOS | ⬜ out of scope |
+
+**Positioning:** an offline *first-pass technical screening* tool. It does not
+predict coverage, does not assess commercial viability (no CAPEX/OPEX/ARPU/ROI
+model exists) and does not replace a site survey. See
+`docs/PHASE-1-7-PROFESSIONAL-VALIDATION.md` for the independent verdicts,
+`docs/DOMAIN-VALIDATION-REGISTER.md` for every product-defined assumption, and
+`docs/TRACEABILITY-MATRIX.md` for output→source→test mapping.

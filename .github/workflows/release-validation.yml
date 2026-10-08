@@ -1,0 +1,258 @@
+name: Release Validation
+
+# ---------------------------------------------------------------------------
+# SECOND validation path — the release artifact.
+#
+# CI's default Test Lab job validates the DEBUG build (no secrets required, so
+# it can run on every push). That is not evidence about the artifact we ship:
+# the release build is non-debuggable, production-signed and has no cleartext
+# traffic or dev-support hooks. An app that only fails when NOT debuggable
+# passes a debug-build test and fails in production. This workflow validates
+# the RELEASE artifact specifically.
+#
+#   Release build
+#        ↓
+#   Signed release APK (+ instrumentation test APK, same certificate)
+#        ↓
+#   Firebase Test Lab
+#        ↓
+#   Robo crawl  +  targeted functional tests
+#        ↓
+#   5-device matrix
+#        ↓
+#   PASS / FAIL
+#
+# Requires repository secrets:
+#   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD   (signing)
+#   GCP_SA_KEY, FIREBASE_PROJECT_ID                               (Test Lab)
+#
+# NOTE ON TEST LAB QUOTA: the free Spark plan allows ~10 virtual tests/day.
+# A full matrix run here is 5 devices x 2 test types = 10 tests, i.e. a whole
+# day's quota in one go. Set run_full_matrix=false to validate the primary
+# device only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_robo:
+        description: 'Run the Robo crawl'
+        required: false
+        default: true
+        type: boolean
+      run_targeted:
+        description: 'Run the targeted functional tests'
+        required: false
+        default: true
+        type: boolean
+      run_full_matrix:
+        description: 'Run all 5 matrix devices (false = primary device only; consumes less quota)'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # 1. Build the signed release APK and its matching instrumentation APK.
+  # -------------------------------------------------------------------------
+  build-release:
+    name: Build signed release APK + test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK / NDK
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMGR="$(ls "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          [ -n "$SDKMGR" ] || { echo "::error::sdkmanager not found under $SDK_ROOT"; exit 1; }
+          yes | "$SDKMGR" --licenses >/dev/null 2>&1 || true
+          "$SDKMGR" --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.1.12297006" \
+            "platform-tools"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Install JS dependencies
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not set"; exit 1
+          fi
+          mkdir -p "$HOME/.keystore"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$HOME/.keystore/release.keystore"
+          ls -la "$HOME/.keystore/release.keystore"
+
+      - name: Build signed release APK and release instrumentation APK
+        working-directory: app/android
+        env:
+          TOWERFEASIBILITY_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          TOWERFEASIBILITY_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          TOWERFEASIBILITY_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          export TOWERFEASIBILITY_KEYSTORE="$HOME/.keystore/release.keystore"
+          # 2 GB heap: the ~294 MB data pack is buffered by the packager.
+          ./gradlew assembleRelease assembleReleaseAndroidTest --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx2048m -Xms256m"
+
+      - name: Verify signatures match (Test Lab requires it)
+        run: |
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          APP=$(find app/android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          TEST=$(find app/android/app/build/outputs/apk/androidTest -name '*.apk' | head -1)
+          [ -n "$APP" ] || { echo "::error::release APK not found"; exit 1; }
+          [ -n "$TEST" ] || { echo "::error::release androidTest APK not found"; exit 1; }
+          echo "app  APK: $APP"
+          echo "test APK: $TEST"
+          A=$(  "$BT"/apksigner verify --print-certs "$APP"  | grep -m1 'SHA-256 digest' | awk '{print $NF}')
+          T=$(  "$BT"/apksigner verify --print-certs "$TEST" | grep -m1 'SHA-256 digest' | awk '{print $NF}')
+          echo "app  cert: $A"
+          echo "test cert: $T"
+          if [ "$A" != "$T" ]; then
+            echo "::error::app and test APKs are signed with different certificates; Test Lab will reject the run"
+            exit 1
+          fi
+          echo "APP_APK=$APP" >> "$GITHUB_ENV"
+          echo "TEST_APK=$TEST" >> "$GITHUB_ENV"
+
+      - name: Name artifacts
+        run: |
+          mkdir -p out
+          cp "$APP_APK"  "out/TowerFeasibilityPro-release.apk"
+          cp "$TEST_APK" "out/TowerFeasibilityPro-release-androidTest.apk"
+          ls -la out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: towerfeasibility-release-apk
+          path: out/TowerFeasibilityPro-release.apk
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: towerfeasibility-release-test-apk
+          path: out/TowerFeasibilityPro-release-androidTest.apk
+          retention-days: 30
+
+      - name: Report artifact metadata
+        run: |
+          {
+            echo "## Release artifacts built"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| **APK** | \`$(basename "$APP_APK")\` |"
+            echo "| **Size** | $(($(stat -c%s "$APP_APK")/1024/1024)) MB |"
+            echo "| **SHA-256** | \`$(sha256sum "$APP_APK" | cut -d' ' -f1 | cut -c1-16)…\` |"
+            echo "| **Test APK** | \`$(basename "$TEST_APK")\` |"
+            echo "| **Commit** | \`${GITHUB_SHA::12}\` |"
+            echo ""
+            echo "> The release APK is signed with the same certificate as the test APK."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # -------------------------------------------------------------------------
+  # 2. Robo + targeted functional tests on the primary device.
+  #    This is the fast gate: if the release artifact is broken, fail here
+  #    before spending the whole matrix's quota.
+  # -------------------------------------------------------------------------
+  validate-primary:
+    name: Release validation · primary device
+    needs: build-release
+    uses: ./.github/workflows/firebase-test-lab-suite.yml
+    with:
+      artifact_name: towerfeasibility-release-apk
+      test_apk_artifact: towerfeasibility-release-test-apk
+      run_robo: ${{ inputs.run_robo }}
+      run_targeted: ${{ inputs.run_targeted }}
+      robo_timeout: '15m'
+      test_timeout: '45m'
+      label: release-primary
+      devices: >-
+        [{"model":"SmallPhone.arm","version":"35","locale":"en","orientation":"portrait"}]
+    secrets:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+  # -------------------------------------------------------------------------
+  # 3. Full 5-device matrix on the same release artifact.
+  # -------------------------------------------------------------------------
+  device-matrix:
+    name: Release validation · 5-device matrix
+    needs: validate-primary
+    if: ${{ inputs.run_full_matrix }}
+    uses: ./.github/workflows/firebase-test-lab-suite.yml
+    with:
+      artifact_name: towerfeasibility-release-apk
+      test_apk_artifact: towerfeasibility-release-test-apk
+      run_robo: ${{ inputs.run_robo }}
+      run_targeted: ${{ inputs.run_targeted }}
+      robo_timeout: '15m'
+      test_timeout: '45m'
+      label: release-matrix
+      # The 5-device matrix from docs/DEVICE-TEST-MATRIX.md.
+      devices: >-
+        [{"model":"SmallPhone.arm","version":"35","locale":"en","orientation":"portrait"},
+         {"model":"MediumPhone.arm","version":"35","locale":"en","orientation":"portrait"},
+         {"model":"Pixel2.arm","version":"33","locale":"en","orientation":"portrait"},
+         {"model":"MediumTablet.arm","version":"34","locale":"en","orientation":"landscape"},
+         {"model":"SmallPhone.arm","version":"30","locale":"en","orientation":"portrait"}]
+    secrets:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+  # -------------------------------------------------------------------------
+  # 4. Final verdict.
+  # -------------------------------------------------------------------------
+  release-verdict:
+    name: Release validation verdict
+    runs-on: ubuntu-latest
+    needs: [build-release, validate-primary, device-matrix]
+    if: always()
+    steps:
+      - name: Summarise
+        run: |
+          PRIMARY="${{ needs.validate-primary.result }}"
+          MATRIX="${{ needs.device-matrix.result }}"
+          BUILD="${{ needs.build-release.result }}"
+          {
+            echo "## Release validation — verdict"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|-------|--------|"
+            echo "| Build signed release APK + test APK | $BUILD |"
+            echo "| Primary device: Robo + targeted | $PRIMARY |"
+            echo "| 5-device matrix | $MATRIX |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$BUILD" = "success" ] && [ "$PRIMARY" = "success" ] \
+             && { [ "$MATRIX" = "success" ] || [ "$MATRIX" = "skipped" ]; }; then
+            echo "**RESULT: PASS** — the signed release artifact passed validation." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**RESULT: FAIL** — the release artifact did not pass validation." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::release validation failed (build=$BUILD primary=$PRIMARY matrix=$MATRIX)"
+            exit 1
+          fi

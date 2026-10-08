@@ -96,6 +96,9 @@ android {
         versionCode 1
         versionName "1.0.0"
 
+        // Targeted functional tests run via Firebase Test Lab (release validation path).
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
     signingConfigs {
@@ -132,6 +135,17 @@ android {
             useLegacyPackaging enableLegacyPackaging.toBoolean()
         }
     }
+    /**
+     * Firebase Test Lab requires the app APK and the test APK to be signed with
+     * the SAME certificate. AGP only creates an androidTest variant for the
+     * `testBuildType` (debug by default), and that variant inherits the signing
+     * config of its build type.
+     *
+     * Setting this to `release` gives us a `releaseAndroidTest` variant that is
+     * signed with the release keystore, matching the release app APK. It
+     * carries no application code — only the instrumentation tests.
+     */
+    testBuildType "release"
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
@@ -160,6 +174,15 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    // --- Targeted functional tests (androidTest) ---------------------------
+    // Run on Firebase Test Lab against the SIGNED RELEASE APK. These drive the
+    // real UI, so they assert the actual release artifact's behaviour rather
+    // than a debug build's.
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";

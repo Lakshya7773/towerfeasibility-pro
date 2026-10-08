@@ -172,7 +172,7 @@ This proves the fixes shipped into the actual artifact, not just the source.
 | ID | Blocker | Needs |
 |---|---|---|
 | **B-1** | CI release pipeline cannot run — `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` are not set as repository secrets | Owner to add 4 secrets |
-| **B-2** | Release APK/AAB never launched on a device (only the debug build has been Robo-tested) | Firebase Test Lab run against the release artifact |
+| **B-2** | Release APK/AAB never launched on a device (only the debug build has been Robo-tested). The release validation path now exists (`release-validation.yml` + `ReleaseFunctionalTest.java` + 5-device matrix) but cannot run until B-1 is resolved | Firebase Test Lab run against the release artifact — needs B-1 secrets |
 | **B-3** | 5-device matrix specified but unexecuted | Test Lab quota |
 | **B-4** | 20 functional test specs written but not run as targeted tests | Test-lab instrumentation |
 
