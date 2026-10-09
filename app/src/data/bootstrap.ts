@@ -178,9 +178,19 @@ async function installOne(
     const dest = new File(dir, name);
 
     if (typeof mod === 'number') {
-      // Metro asset: copy from the resolved asset URI
+      // Metro asset: copy from the resolved asset URI.
+      // Add a timeout: on some devices (e.g. Firebase Test Lab virtual devices)
+      // downloadAsync() can hang indefinitely, blocking the entire install.
       const asset = Asset.fromModule(mod);
-      await asset.downloadAsync();
+      const timeout = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('asset download timeout')), 30000)
+      );
+      try {
+        await Promise.race([asset.downloadAsync(), timeout]);
+      } catch (e) {
+        console.warn(`[bootstrap] asset download failed for ${rel}: ${e instanceof Error ? e.message : e}`);
+        continue; // skip this asset, continue with the rest
+      }
       if (!asset.localUri) throw new Error(`asset unavailable: ${rel}`);
       await new File(asset.localUri).copy(dest);
     } else {
